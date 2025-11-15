@@ -187,3 +187,51 @@ import { Button } from '@/components/ui/button';
 - `src/supabase/functions/server/`のファイルを編集した後は、必ず`supabase/functions/make-server-856c5cf0/`にコピーしてデプロイすること
 - アクセストークンは`SupabaseSecret.md`に保存され、`.gitignore`に追加されています
 - 関数名は`make-server-856c5cf0`で固定（URLパスと一致）
+
+## Vercelへのデプロイ
+
+フロントエンドアプリケーションをVercelにデプロイする手順:
+
+### 方法1: Vercelダッシュボードを使用（推奨）
+
+1. **GitHubにプッシュ**
+   ```bash
+   git add .
+   git commit -m "Your commit message"
+   git push origin main
+   ```
+
+2. **Vercelダッシュボードでインポート**
+   - https://vercel.com にアクセスしてログイン
+   - "Add New Project" をクリック
+   - GitHubリポジトリ `ksato8710/Quizappforexam` を選択
+   - "Import" をクリック
+
+3. **ビルド設定**
+   - Framework Preset: Vite（自動検出）
+   - Build Command: `npm run build`
+   - Output Directory: `dist`
+   - Install Command: `npm install`
+
+   ※ `vercel.json`に設定があるため、通常は自動で設定されます
+
+4. **デプロイ**
+   - "Deploy" をクリック
+   - デプロイが完了すると、URLが発行されます（例: `https://quizappforexam.vercel.app`）
+
+### 方法2: Vercel CLIを使用
+
+```bash
+# Vercel CLIでログイン
+vercel login
+
+# デプロイ（プレビュー）
+vercel
+
+# 本番デプロイ
+vercel --prod
+```
+
+### 継続的デプロイ
+
+GitHubリポジトリと連携すると、`main`ブランチへのプッシュで自動的に本番環境にデプロイされます。
