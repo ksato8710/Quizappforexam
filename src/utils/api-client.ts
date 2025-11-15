@@ -78,8 +78,31 @@ export const apiClient = {
   },
 
   // Quizzes
-  getQuizzes: async (): Promise<{ quizzes: Quiz[] }> => {
-    return fetchAPI('/quizzes');
+  getQuizzes: async (params?: {
+    categoryId?: string;
+    difficulty?: number | null;
+    count?: number;
+  }): Promise<{ quizzes: Quiz[] }> => {
+    let url = '/quizzes';
+    if (params) {
+      const queryParams = new URLSearchParams();
+      if (params.categoryId) {
+        queryParams.append('categoryId', params.categoryId);
+      }
+      if (params.difficulty !== undefined && params.difficulty !== null) {
+        queryParams.append('difficulty', params.difficulty.toString());
+      } else if (params.difficulty === null) {
+        queryParams.append('difficulty', 'mix');
+      }
+      if (params.count) {
+        queryParams.append('count', params.count.toString());
+      }
+      const queryString = queryParams.toString();
+      if (queryString) {
+        url += `?${queryString}`;
+      }
+    }
+    return fetchAPI(url);
   },
 
   // Categories

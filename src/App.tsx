@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react';
 import { QuizCard } from './components/QuizCard';
+import { QuizSettings, QuizConfig } from './components/QuizSettings';
 import { Auth } from './components/Auth';
 import { Button } from './components/ui/button';
-import { BookOpen, RotateCcw, LogOut, BarChart3 } from 'lucide-react';
-import { apiClient, Quiz } from './utils/api-client';
+import { BookOpen, RotateCcw, LogOut, BarChart3, Settings } from 'lucide-react';
+import { apiClient, Quiz, Category } from './utils/api-client';
 import { getSupabaseClient } from './utils/supabase/client';
 
 export default function App() {
@@ -18,13 +19,16 @@ export default function App() {
   const [quizzes, setQuizzes] = useState<Quiz[]>([]);
   const [loading, setLoading] = useState(true);
   const [showStats, setShowStats] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
   const [stats, setStats] = useState({ totalQuizzes: 0, totalCorrect: 0, totalAnswers: 0 });
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [quizConfig, setQuizConfig] = useState<QuizConfig | null>(null);
 
   const supabase = getSupabaseClient();
 
   useEffect(() => {
     checkAuth();
-    loadQuizzes();
+    loadCategories();
   }, []);
 
   const checkAuth = async () => {
@@ -47,20 +51,35 @@ export default function App() {
     setLoading(false);
   };
 
-  const loadQuizzes = async () => {
+  const loadCategories = async () => {
     try {
-      const response = await apiClient.getQuizzes();
+      const { categories: fetchedCategories } = await apiClient.getCategories();
+      setCategories(fetchedCategories);
+    } catch (error) {
+      console.error('Failed to load categories:', error);
+    }
+  };
+
+  const loadQuizzes = async (config?: QuizConfig) => {
+    try {
+      const params = config ? {
+        categoryId: config.categoryId,
+        difficulty: config.difficulty,
+        count: config.count,
+      } : undefined;
+
+      const response = await apiClient.getQuizzes(params);
       console.log('Quiz API response:', response);
-      
+
       const { quizzes: fetchedQuizzes } = response;
       console.log('Fetched quizzes:', fetchedQuizzes);
-      
+
       // Ensure we have valid quizzes array
       if (!fetchedQuizzes || !Array.isArray(fetchedQuizzes)) {
         console.error('Invalid quizzes data received:', fetchedQuizzes);
         return;
       }
-      
+
       // Filter out null/undefined values first
       const validQuizzes = fetchedQuizzes.filter(quiz => {
         if (quiz == null) {
@@ -69,18 +88,9 @@ export default function App() {
         }
         return true;
       });
-      
+
       console.log('Valid quizzes after filter:', validQuizzes);
-      
-      // Then safely sort quizzes
-      const sortedQuizzes = validQuizzes.sort((a, b) => {
-        const orderA = typeof a.order === 'number' ? a.order : 999;
-        const orderB = typeof b.order === 'number' ? b.order : 999;
-        return orderA - orderB;
-      });
-      
-      console.log('Sorted quizzes:', sortedQuizzes);
-      setQuizzes(sortedQuizzes);
+      setQuizzes(validQuizzes);
     } catch (error) {
       console.error('Failed to load quizzes:', error);
     }
@@ -99,6 +109,19 @@ export default function App() {
     setIsAuthenticated(true);
     setUserName(name);
     loadStats();
+    setShowSettings(true);
+  };
+
+  const handleQuizStart = (config: QuizConfig) => {
+    setQuizConfig(config);
+    setShowSettings(false);
+    setCurrentQuizIndex(0);
+    setShowAnswer(false);
+    setIsCompleted(false);
+    setUserAnswer('');
+    setIsCorrect(null);
+    setCorrectCount(0);
+    loadQuizzes(config);
   };
 
   const handleLogout = async () => {
@@ -113,6 +136,8 @@ export default function App() {
     setIsCorrect(null);
     setCorrectCount(0);
     setShowStats(false);
+    setShowSettings(false);
+    setQuizConfig(null);
   };
 
   const currentQuiz = quizzes[currentQuizIndex];
@@ -169,13 +194,13 @@ export default function App() {
   };
 
   const handleRestart = () => {
-    setCurrentQuizIndex(0);
-    setShowAnswer(false);
-    setIsCompleted(false);
-    setUserAnswer('');
-    setIsCorrect(null);
-    setCorrectCount(0);
-    loadStats();
+    setShowSettings(true);
+  };
+
+  const getCategoryName = (categoryId?: string): string | undefined => {
+    if (!categoryId) return undefined;
+    const category = categories.find(c => c.id === categoryId);
+    return category?.name;
   };
 
   if (loading) {
@@ -188,6 +213,10 @@ export default function App() {
 
   if (!isAuthenticated) {
     return <Auth onAuthSuccess={handleAuthSuccess} />;
+  }
+
+  if (showSettings) {
+    return <QuizSettings onStart={handleQuizStart} />;
   }
 
   if (showStats) {
@@ -308,6 +337,13 @@ export default function App() {
             </div>
             <div className="flex-1 flex justify-end gap-2">
               <Button
+                onClick={() => setShowSettings(true)}
+                variant="outline"
+                size="sm"
+              >
+                <Settings className="w-4 h-4" />
+              </Button>
+              <Button
                 onClick={() => setShowStats(true)}
                 variant="outline"
                 size="sm"
@@ -352,6 +388,7 @@ export default function App() {
           userAnswer={userAnswer}
           setUserAnswer={setUserAnswer}
           isCorrect={isCorrect}
+          categoryName={getCategoryName(currentQuiz?.categoryId)}
         />
       </div>
     </div>
