@@ -1,0 +1,36 @@
+# Secrets
+SupabaseSecret.md
+
+# Dependencies
+node_modules
+
+# Build output
+dist
+.vite
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+
+# Vercel
+.vercel
+
+# Supabase
+supabase/.temp
+supabase/config.toml
+src/supabase/.temp
+
+# Serena
+.serena
+
+# Editor
+.vscode
+.idea
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
