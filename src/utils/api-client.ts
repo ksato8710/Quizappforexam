@@ -63,10 +63,17 @@ async function fetchAPI(endpoint: string, options: RequestInit = {}, useAuth = f
 
 export const apiClient = {
   // Auth
-  signup: async (email: string, password: string, name: string) => {
+  login: async (name: string, password: string) => {
+    return fetchAPI('/login', {
+      method: 'POST',
+      body: JSON.stringify({ name, password }),
+    });
+  },
+
+  signup: async (name: string, password: string) => {
     return fetchAPI('/signup', {
       method: 'POST',
-      body: JSON.stringify({ email, password, name }),
+      body: JSON.stringify({ name, password }),
     });
   },
 

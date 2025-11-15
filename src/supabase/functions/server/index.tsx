@@ -81,16 +81,68 @@ app.post("/make-server-856c5cf0/debug/init-categories", async (c) => {
   }
 });
 
+// ===== Helper Functions for Auth =====
+
+// Convert name to email format for Supabase Auth
+function nameToEmail(name: string): string {
+  const sanitized = name.toLowerCase().trim().replace(/\s+/g, '_');
+  return `${sanitized}@quizapp.local`;
+}
+
 // ===== User Authentication Endpoints =====
+
+// Login endpoint with name
+app.post("/make-server-856c5cf0/login", async (c) => {
+  try {
+    const { name, password } = await c.req.json();
+
+    if (!name || !password) {
+      return c.json({ error: 'Name and password are required' }, 400);
+    }
+
+    // Convert name to email format
+    const email = nameToEmail(name);
+
+    // Try to sign in with Supabase Auth
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
+
+    if (error) {
+      console.log(`Login error: ${error.message}`);
+      return c.json({ error: 'ログインに失敗しました。名前またはパスワードが正しくありません。' }, 401);
+    }
+
+    if (!data.session) {
+      return c.json({ error: 'セッションの作成に失敗しました' }, 500);
+    }
+
+    return c.json({
+      message: 'Login successful',
+      accessToken: data.session.access_token,
+      user: {
+        id: data.user.id,
+        name: data.user.user_metadata?.name || name,
+      }
+    });
+  } catch (error) {
+    console.log(`Login error: ${error}`);
+    return c.json({ error: 'Internal server error during login' }, 500);
+  }
+});
 
 // Sign up endpoint
 app.post("/make-server-856c5cf0/signup", async (c) => {
   try {
-    const { email, password, name } = await c.req.json();
+    const { password, name } = await c.req.json();
 
-    if (!email || !password || !name) {
-      return c.json({ error: 'Email, password, and name are required' }, 400);
+    if (!password || !name) {
+      return c.json({ error: 'Name and password are required' }, 400);
     }
+
+    // Convert name to email format
+    const email = nameToEmail(name);
 
     // Create user in Supabase Auth
     const { data, error } = await supabase.auth.admin.createUser({
@@ -103,6 +155,9 @@ app.post("/make-server-856c5cf0/signup", async (c) => {
 
     if (error) {
       console.log(`Signup error: ${error.message}`);
+      if (error.message.includes('already registered')) {
+        return c.json({ error: 'この名前は既に使用されています' }, 400);
+      }
       return c.json({ error: error.message }, 400);
     }
 
@@ -121,9 +176,9 @@ app.post("/make-server-856c5cf0/signup", async (c) => {
       totalAnswers: 0,
     });
 
-    return c.json({ 
+    return c.json({
       message: 'User created successfully',
-      userId: data.user.id 
+      userId: data.user.id
     });
   } catch (error) {
     console.log(`Signup error: ${error}`);
