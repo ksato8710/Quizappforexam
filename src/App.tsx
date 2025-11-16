@@ -355,7 +355,6 @@ export default function App() {
             </div>
           </div>
           <p className="text-gray-600 mb-2">ようこそ、{userName}さん</p>
-          <h1 className="text-indigo-900 mb-2">楽しく学ぼう！</h1>
           <p className="text-gray-600">全{quizzes.length}問</p>
         </div>
 
