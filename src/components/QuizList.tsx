@@ -27,6 +27,11 @@ export function QuizList({ onBack }: { onBack: () => void }) {
   const [history, setHistory] = useState<HistoryItem[]>([])
   const [selected, setSelected] = useState<Quiz | null>(null)
   const [loading, setLoading] = useState(true)
+  const [subjectFilter, setSubjectFilter] = useState<string>('all')
+  const [unitFilter, setUnitFilter] = useState<string>('all')
+  const [difficultyFilter, setDifficultyFilter] = useState<string>('all')
+  const [sortKey, setSortKey] = useState<'none'|'question'|'subject'|'unit'|'difficulty'|'answers'|'accuracy'|'order'>('none')
+  const [sortOrder, setSortOrder] = useState<'asc'|'desc'>('desc')
 
   useEffect(() => {
     let isMounted = true
@@ -64,6 +69,37 @@ export function QuizList({ onBack }: { onBack: () => void }) {
     return map
   }, [history])
 
+  const uniqueSubjects = Array.from(new Set(quizzes.map(q => q.subject).filter(Boolean))) as string[]
+  const uniqueUnits = Array.from(new Set(quizzes.map(q => q.unit).filter(Boolean))) as string[]
+  const uniqueDifficulties = Array.from(new Set(quizzes.map(q => q.difficulty).filter((v): v is number => v != null))).sort((a,b)=>a-b)
+
+  const prepared = quizzes.map((q, index) => {
+    const s = statsByQuiz.get(q.id) || { answers: 0, correct: 0 }
+    const accuracy = s.answers > 0 ? Math.round((s.correct / s.answers) * 100) : 0
+    return { q, s, accuracy, index }
+  })
+
+  const filtered = prepared.filter(({ q }) => {
+    if (subjectFilter !== 'all' && q.subject !== subjectFilter) return false
+    if (unitFilter !== 'all' && q.unit !== unitFilter) return false
+    if (difficultyFilter !== 'all' && String(q.difficulty ?? '') !== difficultyFilter) return false
+    return true
+  })
+
+  const sorted = [...filtered].sort((a,b) => {
+    const dir = sortOrder === 'asc' ? 1 : -1
+    switch (sortKey) {
+      case 'question': return dir * String(a.q.question ?? '').localeCompare(String(b.q.question ?? ''))
+      case 'subject': return dir * String(a.q.subject ?? '').localeCompare(String(b.q.subject ?? ''))
+      case 'unit': return dir * String(a.q.unit ?? '').localeCompare(String(b.q.unit ?? ''))
+      case 'difficulty': return dir * ((a.q.difficulty ?? -1) - (b.q.difficulty ?? -1))
+      case 'answers': return dir * ((a.s.answers ?? 0) - (b.s.answers ?? 0))
+      case 'accuracy': return dir * (a.accuracy - b.accuracy)
+      case 'order': return dir * ((a.q.order ?? Number.MAX_SAFE_INTEGER) - (b.q.order ?? Number.MAX_SAFE_INTEGER))
+      case 'none':
+      default: return a.index - b.index
+    }
+  })
   if (loading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center">
@@ -126,6 +162,7 @@ export function QuizList({ onBack }: { onBack: () => void }) {
     )
   }
 
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 py-8 px-4">
       <div className="max-w-5xl mx-auto space-y-6">
@@ -133,6 +170,55 @@ export function QuizList({ onBack }: { onBack: () => void }) {
           <h1 className="text-indigo-900">クイズ一覧</h1>
           <Button variant="outline" onClick={onBack}>統計へ戻る</Button>
         </div>
+        <div className="bg-white rounded-xl shadow-md p-4">
+          <div className="grid grid-cols-1 md:grid-cols-5 gap-3">
+            <label className="text-sm text-gray-700 flex flex-col">
+              <span className="mb-1">教科</span>
+              <select aria-label="教科" className="border rounded-md px-2 py-1" value={subjectFilter} onChange={e=>setSubjectFilter(e.target.value)}>
+                <option value="all">すべて</option>
+                {uniqueSubjects.map(s => (<option key={s} value={s}>{s}</option>))}
+              </select>
+            </label>
+            <label className="text-sm text-gray-700 flex flex-col">
+              <span className="mb-1">単元</span>
+              <select aria-label="単元" className="border rounded-md px-2 py-1" value={unitFilter} onChange={e=>setUnitFilter(e.target.value)}>
+                <option value="all">すべて</option>
+                {uniqueUnits.map(u => (<option key={u} value={u}>{u}</option>))}
+              </select>
+            </label>
+            <label className="text-sm text-gray-700 flex flex-col">
+              <span className="mb-1">難易度</span>
+              <select aria-label="難易度" className="border rounded-md px-2 py-1" value={difficultyFilter} onChange={e=>setDifficultyFilter(e.target.value)}>
+                <option value="all">すべて</option>
+                {uniqueDifficulties.map(d => (<option key={d} value={String(d)}>Lv.{d}</option>))}
+              </select>
+            </label>
+            <label className="text-sm text-gray-700 flex flex-col">
+              <span className="mb-1">並び替え</span>
+              <select aria-label="並び替え" className="border rounded-md px-2 py-1" value={sortKey} onChange={e=>setSortKey(e.target.value as any)}>
+                <option value="none">なし</option>
+                <option value="answers">過去の回答数</option>
+                <option value="accuracy">正答率</option>
+                <option value="difficulty">難易度</option>
+                <option value="subject">教科</option>
+                <option value="unit">単元</option>
+                <option value="question">クイズ内容</option>
+                <option value="order">順序</option>
+              </select>
+            </label>
+            <label className="text-sm text-gray-700 flex flex-col">
+              <span className="mb-1">順序</span>
+              <select aria-label="順序" className="border rounded-md px-2 py-1" value={sortOrder} onChange={e=>setSortOrder(e.target.value as any)}>
+                <option value="desc">降順</option>
+                <option value="asc">昇順</option>
+              </select>
+            </label>
+          </div>
+          <div className="mt-3">
+            <Button variant="outline" onClick={() => { setSubjectFilter('all'); setUnitFilter('all'); setDifficultyFilter('all'); setSortKey('none'); setSortOrder('desc'); }}>クリア</Button>
+          </div>
+        </div>
+
         <Card className="p-0 overflow-hidden">
           <Table>
             <TableHeader>
@@ -146,9 +232,7 @@ export function QuizList({ onBack }: { onBack: () => void }) {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {quizzes.map((q) => {
-                const s = statsByQuiz.get(q.id)
-                const accuracy = s && s.answers > 0 ? Math.round((s.correct / s.answers) * 100) : 0
+              {sorted.map(({ q, s, accuracy }) => {
                 return (
                   <TableRow key={q.id} className="cursor-pointer hover:bg-indigo-50" onClick={() => setSelected(q)}>
                     <TableCell>
