@@ -13,10 +13,9 @@ interface QuizCardProps {
   userAnswer: string;
   setUserAnswer: (answer: string) => void;
   isCorrect: boolean | null;
-  categoryName?: string;
 }
 
-export function QuizCard({ quiz, showAnswer, onShowAnswer, onNext, isLastQuiz, userAnswer, setUserAnswer, isCorrect, categoryName }: QuizCardProps) {
+export function QuizCard({ quiz, showAnswer, onShowAnswer, onNext, isLastQuiz, userAnswer, setUserAnswer, isCorrect }: QuizCardProps) {
   const handleChoiceClick = (choice: string) => {
     if (!showAnswer) {
       // Extract the choice letter (ア, イ, ウ, エ)
@@ -25,44 +24,12 @@ export function QuizCard({ quiz, showAnswer, onShowAnswer, onNext, isLastQuiz, u
     }
   };
 
-  const getDifficultyLabel = (difficulty?: number): string => {
-    switch (difficulty) {
-      case 2: return 'やさしい';
-      case 3: return 'ふつう';
-      case 4: return 'むずかしい';
-      case 5: return 'とてもむずかしい';
-      default: return '';
-    }
-  };
-
-  const getDifficultyColor = (difficulty?: number): string => {
-    switch (difficulty) {
-      case 2: return 'bg-green-100 text-green-700 border-green-200';
-      case 3: return 'bg-blue-100 text-blue-700 border-blue-200';
-      case 4: return 'bg-orange-100 text-orange-700 border-orange-200';
-      case 5: return 'bg-red-100 text-red-700 border-red-200';
-      default: return 'bg-gray-100 text-gray-700 border-gray-200';
-    }
-  };
-
   return (
     <Card className="bg-white shadow-xl rounded-2xl overflow-hidden">
       <div className="p-8">
-        {/* Question Number and Metadata */}
-        <div className="flex flex-wrap items-center gap-2 mb-6">
-          <div className="inline-block bg-gradient-to-r from-blue-500 to-indigo-600 text-white px-4 py-1 rounded-full">
-            問{quiz.id}
-          </div>
-          {quiz.difficulty && (
-            <div className={`inline-block px-3 py-1 rounded-full border text-sm ${getDifficultyColor(quiz.difficulty)}`}>
-              {getDifficultyLabel(quiz.difficulty)}
-            </div>
-          )}
-          {categoryName && (
-            <div className="inline-block bg-purple-100 text-purple-700 border border-purple-200 px-3 py-1 rounded-full text-sm">
-              {categoryName}
-            </div>
-          )}
+        {/* Question Number */}
+        <div className="inline-block bg-gradient-to-r from-blue-500 to-indigo-600 text-white px-4 py-1 rounded-full mb-6">
+          問{quiz.id}
         </div>
 
         {/* Question */}
