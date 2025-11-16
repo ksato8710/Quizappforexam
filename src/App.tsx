@@ -208,7 +208,7 @@ export default function App() {
   }
 
   if (showSettings) {
-    return <QuizSettings onStart={handleQuizStart} />;
+    return <QuizSettings onStart={handleQuizStart} onShowStats={() => setShowStats(true)} />;
   }
 
   if (showStats) {
@@ -218,7 +218,10 @@ export default function App() {
           <div className="flex justify-between items-center mb-8">
             <h1 className="text-indigo-900">あなたの統計</h1>
             <Button
-              onClick={() => setShowStats(false)}
+              onClick={() => {
+                setShowStats(false);
+                setShowSettings(true);
+              }}
               variant="outline"
             >
               戻る
