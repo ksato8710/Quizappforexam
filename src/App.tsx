@@ -4,7 +4,7 @@ import { QuizSettings, QuizConfig } from './components/QuizSettings';
 import { Auth } from './components/Auth';
 import { Button } from './components/ui/button';
 import { BookOpen, RotateCcw, LogOut, BarChart3, Settings } from 'lucide-react';
-import { apiClient, Quiz, Category } from './utils/api-client';
+import { apiClient, Quiz } from './utils/api-client';
 import { getSupabaseClient } from './utils/supabase/client';
 
 export default function App() {
@@ -21,14 +21,12 @@ export default function App() {
   const [showStats, setShowStats] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [stats, setStats] = useState({ totalQuizzes: 0, totalCorrect: 0, totalAnswers: 0 });
-  const [categories, setCategories] = useState<Category[]>([]);
   const [quizConfig, setQuizConfig] = useState<QuizConfig | null>(null);
 
   const supabase = getSupabaseClient();
 
   useEffect(() => {
     checkAuth();
-    loadCategories();
   }, []);
 
   const checkAuth = async () => {
@@ -40,6 +38,7 @@ export default function App() {
           setIsAuthenticated(true);
           setUserName(data.user.user_metadata?.name || data.user.email || 'ユーザー');
           loadStats();
+          setShowSettings(true);
         } else {
           localStorage.removeItem('accessToken');
         }
@@ -51,19 +50,11 @@ export default function App() {
     setLoading(false);
   };
 
-  const loadCategories = async () => {
-    try {
-      const { categories: fetchedCategories } = await apiClient.getCategories();
-      setCategories(fetchedCategories);
-    } catch (error) {
-      console.error('Failed to load categories:', error);
-    }
-  };
-
   const loadQuizzes = async (config?: QuizConfig) => {
     try {
       const params = config ? {
-        categoryId: config.categoryId,
+        subject: config.subject,
+        unit: config.unit,
         difficulty: config.difficulty,
         count: config.count,
       } : undefined;
@@ -197,10 +188,11 @@ export default function App() {
     setShowSettings(true);
   };
 
-  const getCategoryName = (categoryId?: string): string | undefined => {
-    if (!categoryId) return undefined;
-    const category = categories.find(c => c.id === categoryId);
-    return category?.name;
+  const getQuizMetadata = (quiz: Quiz) => {
+    const parts = [];
+    if (quiz.subject) parts.push(quiz.subject);
+    if (quiz.unit) parts.push(quiz.unit);
+    return parts.length > 0 ? parts.join(' - ') : undefined;
   };
 
   if (loading) {
@@ -388,7 +380,7 @@ export default function App() {
           userAnswer={userAnswer}
           setUserAnswer={setUserAnswer}
           isCorrect={isCorrect}
-          categoryName={getCategoryName(currentQuiz?.categoryId)}
+          categoryName={getQuizMetadata(currentQuiz)}
         />
       </div>
     </div>

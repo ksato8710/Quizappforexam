@@ -10,7 +10,8 @@ export interface Quiz {
   type: 'text' | 'multiple-choice';
   choices?: string[];
   difficulty?: number;
-  categoryId?: string;
+  subject?: string;  // 教科（例: 社会、理科）
+  unit?: string;     // 単元（例: 強かな支配の中で生きた人々）
   order?: number;
 }
 
@@ -79,15 +80,19 @@ export const apiClient = {
 
   // Quizzes
   getQuizzes: async (params?: {
-    categoryId?: string;
+    subject?: string;
+    unit?: string;
     difficulty?: number | null;
     count?: number;
   }): Promise<{ quizzes: Quiz[] }> => {
     let url = '/quizzes';
     if (params) {
       const queryParams = new URLSearchParams();
-      if (params.categoryId) {
-        queryParams.append('categoryId', params.categoryId);
+      if (params.subject) {
+        queryParams.append('subject', params.subject);
+      }
+      if (params.unit) {
+        queryParams.append('unit', params.unit);
       }
       if (params.difficulty !== undefined && params.difficulty !== null) {
         queryParams.append('difficulty', params.difficulty.toString());
