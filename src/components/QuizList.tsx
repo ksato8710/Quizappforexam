@@ -3,6 +3,7 @@ import { apiClient, Quiz } from '@/utils/api-client'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
+import { Badge } from '@/components/ui/badge'
 
 type HistoryItem = {
   quizId?: string
@@ -155,7 +156,7 @@ export function QuizList({ onBack }: { onBack: () => void }) {
                     </TableCell>
                     <TableCell>{q.subject ?? '-'}</TableCell>
                     <TableCell>{q.unit ?? '-'}</TableCell>
-                    <TableCell>{q.difficulty ?? '-'}</TableCell>
+                    <TableCell>{q.difficulty != null ? <Badge variant="secondary">Lv.{q.difficulty}</Badge> : '-'}</TableCell>
                     <TableCell>{s?.answers ?? 0}</TableCell>
                     <TableCell>{accuracy}%</TableCell>
                   </TableRow>

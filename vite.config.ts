@@ -4,6 +4,10 @@
   import path from 'path';
 
   export default defineConfig({
+    test: {
+      environment: 'jsdom',
+      setupFiles: ['src/test/setup.ts'],
+    },
     plugins: [react()],
     resolve: {
       extensions: ['.js', '.jsx', '.ts', '.tsx', '.json'],
