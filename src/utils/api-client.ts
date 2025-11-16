@@ -63,16 +63,46 @@ async function fetchAPI(endpoint: string, options: RequestInit = {}, useAuth = f
 
 export const apiClient = {
   // Auth
-  signup: async (email: string, password: string, name: string) => {
+  login: async (name: string, password: string) => {
+    return fetchAPI('/login', {
+      method: 'POST',
+      body: JSON.stringify({ name, password }),
+    });
+  },
+
+  signup: async (name: string, password: string) => {
     return fetchAPI('/signup', {
       method: 'POST',
-      body: JSON.stringify({ email, password, name }),
+      body: JSON.stringify({ name, password }),
     });
   },
 
   // Quizzes
-  getQuizzes: async (): Promise<{ quizzes: Quiz[] }> => {
-    return fetchAPI('/quizzes');
+  getQuizzes: async (params?: {
+    categoryId?: string;
+    difficulty?: number | null;
+    count?: number;
+  }): Promise<{ quizzes: Quiz[] }> => {
+    let url = '/quizzes';
+    if (params) {
+      const queryParams = new URLSearchParams();
+      if (params.categoryId) {
+        queryParams.append('categoryId', params.categoryId);
+      }
+      if (params.difficulty !== undefined && params.difficulty !== null) {
+        queryParams.append('difficulty', params.difficulty.toString());
+      } else if (params.difficulty === null) {
+        queryParams.append('difficulty', 'mix');
+      }
+      if (params.count) {
+        queryParams.append('count', params.count.toString());
+      }
+      const queryString = queryParams.toString();
+      if (queryString) {
+        url += `?${queryString}`;
+      }
+    }
+    return fetchAPI(url);
   },
 
   // Categories

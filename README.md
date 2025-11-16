@@ -1,5 +1,5 @@
 
-  # Quiz App for Edo Period
+  # Quiz App for Exam
 
   This is a code bundle for Quiz App for Edo Period. The original project is available at https://www.figma.com/design/7aFG88YxwoO71kv7HgfdAq/Quiz-App-for-Edo-Period.
 

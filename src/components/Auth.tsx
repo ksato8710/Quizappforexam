@@ -3,7 +3,6 @@ import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Card } from './ui/card';
 import { BookOpen, LogIn, UserPlus } from 'lucide-react';
-import { getSupabaseClient } from '../utils/supabase/client';
 import { apiClient } from '../utils/api-client';
 
 interface AuthProps {
@@ -12,13 +11,10 @@ interface AuthProps {
 
 export function Auth({ onAuthSuccess }: AuthProps) {
   const [isLogin, setIsLogin] = useState(true);
-  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-
-  const supabase = getSupabaseClient();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -26,46 +22,35 @@ export function Auth({ onAuthSuccess }: AuthProps) {
     setLoading(true);
 
     try {
+      if (!name.trim()) {
+        setError('名前を入力してください');
+        setLoading(false);
+        return;
+      }
+
       if (isLogin) {
         // Login
-        const { data, error: loginError } = await supabase.auth.signInWithPassword({
-          email,
-          password,
-        });
+        const response = await apiClient.login(name, password);
 
-        if (loginError) throw loginError;
-
-        if (data.session) {
-          localStorage.setItem('accessToken', data.session.access_token);
-          const userName = data.user.user_metadata?.name || email;
-          onAuthSuccess(data.session.access_token, userName);
+        if (response.accessToken) {
+          localStorage.setItem('accessToken', response.accessToken);
+          onAuthSuccess(response.accessToken, response.user.name);
         }
       } else {
         // Signup
-        if (!name.trim()) {
-          setError('名前を入力してください');
-          setLoading(false);
-          return;
-        }
-
-        await apiClient.signup(email, password, name);
+        await apiClient.signup(name, password);
 
         // Auto login after signup
-        const { data, error: loginError } = await supabase.auth.signInWithPassword({
-          email,
-          password,
-        });
+        const response = await apiClient.login(name, password);
 
-        if (loginError) throw loginError;
-
-        if (data.session) {
-          localStorage.setItem('accessToken', data.session.access_token);
-          onAuthSuccess(data.session.access_token, name);
+        if (response.accessToken) {
+          localStorage.setItem('accessToken', response.accessToken);
+          onAuthSuccess(response.accessToken, name);
         }
       }
     } catch (err: any) {
       console.error('Auth error:', err);
-      setError(err.message || '認証に失敗しました');
+      setError(err.message || err.error || '認証に失敗しました');
     } finally {
       setLoading(false);
     }
@@ -85,26 +70,13 @@ export function Auth({ onAuthSuccess }: AuthProps) {
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          {!isLogin && (
-            <div>
-              <label className="block text-gray-700 mb-2">名前</label>
-              <Input
-                type="text"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder="山田太郎"
-                required
-              />
-            </div>
-          )}
-
           <div>
-            <label className="block text-gray-700 mb-2">メールアドレス</label>
+            <label className="block text-gray-700 mb-2">名前</label>
             <Input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="example@email.com"
+              type="text"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="山田太郎"
               required
             />
           </div>
