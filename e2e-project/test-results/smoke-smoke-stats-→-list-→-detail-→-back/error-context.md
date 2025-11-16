@@ -1,0 +1,59 @@
+# Page snapshot
+
+```yaml
+- generic [ref=e4]:
+  - generic [ref=e5]:
+    - heading "クイズ設定" [level=1] [ref=e6]
+    - paragraph [ref=e7]: お好みの設定でクイズを始めましょう
+  - generic [ref=e8]:
+    - generic [ref=e9]:
+      - generic [ref=e10]: 教科
+      - combobox [ref=e11]:
+        - generic: 全教科
+        - img
+    - generic [ref=e12]:
+      - generic [ref=e13]: 単元
+      - combobox [ref=e14]:
+        - generic: 全単元
+        - img
+    - generic [ref=e15]:
+      - generic [ref=e16]: 難易度
+      - radiogroup [ref=e17]:
+        - generic [ref=e18]:
+          - generic [ref=e19] [cursor=pointer]:
+            - radio "ミックス" [checked] [ref=e20]:
+              - img [ref=e22]
+            - generic [ref=e24]: ミックス
+          - generic [ref=e25] [cursor=pointer]:
+            - radio "やさしい" [ref=e26]
+            - generic [ref=e27]: やさしい
+          - generic [ref=e28] [cursor=pointer]:
+            - radio "ふつう" [ref=e29]
+            - generic [ref=e30]: ふつう
+          - generic [ref=e31] [cursor=pointer]:
+            - radio "むずかしい" [ref=e32]
+            - generic [ref=e33]: むずかしい
+          - generic [ref=e34] [cursor=pointer]:
+            - radio "とてもむずかしい" [ref=e35]
+            - generic [ref=e36]: とてもむずかしい
+    - generic [ref=e37]:
+      - generic [ref=e38]: 問題数
+      - radiogroup [ref=e39]:
+        - generic [ref=e40]:
+          - generic [ref=e41] [cursor=pointer]:
+            - radio "5問" [ref=e42]
+            - generic [ref=e43]: 5問
+          - generic [ref=e44] [cursor=pointer]:
+            - radio "10問" [checked] [ref=e45]:
+              - img [ref=e47]
+            - generic [ref=e49]: 10問
+          - generic [ref=e50] [cursor=pointer]:
+            - radio "20問" [ref=e51]
+            - generic [ref=e52]: 20問
+    - button "クイズを始める" [ref=e53]:
+      - img
+      - text: クイズを始める
+    - button "統計情報を見る" [ref=e54]:
+      - img
+      - text: 統計情報を見る
+```
