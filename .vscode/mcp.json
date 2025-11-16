@@ -1,0 +1,15 @@
+{
+  "mcp": {
+    "playwright": {
+      "command": "npx",
+      "args": [
+        "@playwright/mcp@latest",
+        "--headless",
+        "--isolated",
+        "--init-script",
+        "tools/mcp/playwright-init.js"
+      ]
+    }
+  }
+}
+
