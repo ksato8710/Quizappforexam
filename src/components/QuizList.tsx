@@ -12,14 +12,13 @@ type HistoryItem = {
   is_correct?: boolean
 }
 
-function getQuizId(h: HistoryItem): string | undefined {
-  return (h.quizId as string) ?? (h.quiz_id as string)
+function getQuizId(h: any): string | undefined {
+  return (h?.quizId as string) ?? (h?.quiz_id as string)
 }
 
-function getIsCorrect(h: HistoryItem): boolean | undefined {
-  if (typeof h.isCorrect === 'boolean') return h.isCorrect
-  if (typeof h.is_correct === 'boolean') return h.is_correct
-  return undefined
+function getIsCorrect(h: any): boolean | undefined {
+  const v = (h?.isCorrect ?? h?.is_correct)
+  return typeof v === 'boolean' ? v : undefined
 }
 
 export function QuizList({ onBack }: { onBack: () => void }) {
@@ -44,7 +43,7 @@ export function QuizList({ onBack }: { onBack: () => void }) {
         if (!isMounted) return
         setQuizzes(Array.isArray(quizzes) ? quizzes.filter(Boolean) : [])
         const items = Array.isArray((hist as any)?.history) ? (hist as any).history : Array.isArray(hist) ? hist : []
-        setHistory(items as HistoryItem[])
+        setHistory(((items as any[]) || []).filter(Boolean) as HistoryItem[])
       } catch (e) {
         console.error('Failed to load quizzes/history', e)
       } finally {
@@ -58,6 +57,7 @@ export function QuizList({ onBack }: { onBack: () => void }) {
   const statsByQuiz = useMemo(() => {
     const map = new Map<string, { answers: number; correct: number }>()
     for (const h of history) {
+      if (!h) continue;
       const id = getQuizId(h)
       if (!id) continue
       const correct = !!getIsCorrect(h)
