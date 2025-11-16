@@ -4,7 +4,7 @@ import { Button } from './ui/button';
 import { Label } from './ui/label';
 import { RadioGroup, RadioGroupItem } from './ui/radio-group';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
-import { Play } from 'lucide-react';
+import { Play, BarChart3 } from 'lucide-react';
 import { apiClient } from '../utils/api-client';
 
 export interface QuizConfig {
@@ -16,9 +16,10 @@ export interface QuizConfig {
 
 interface QuizSettingsProps {
   onStart: (config: QuizConfig) => void;
+  onShowStats?: () => void;
 }
 
-export function QuizSettings({ onStart }: QuizSettingsProps) {
+export function QuizSettings({ onStart, onShowStats }: QuizSettingsProps) {
   const [selectedSubject, setSelectedSubject] = useState<string>('all');
   const [selectedUnit, setSelectedUnit] = useState<string>('all');
   const [selectedDifficulty, setSelectedDifficulty] = useState<string>('mix');
@@ -177,6 +178,19 @@ export function QuizSettings({ onStart }: QuizSettingsProps) {
             <Play className="w-5 h-5 mr-2" />
             クイズを始める
           </Button>
+
+          {/* Stats Button */}
+          {onShowStats && (
+            <Button
+              onClick={onShowStats}
+              variant="outline"
+              className="w-full mt-3"
+              size="lg"
+            >
+              <BarChart3 className="w-5 h-5 mr-2" />
+              統計情報を見る
+            </Button>
+          )}
         </Card>
       </div>
     </div>
