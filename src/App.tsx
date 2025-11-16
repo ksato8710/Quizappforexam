@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { QuizCard } from './components/QuizCard';
 import { QuizSettings, QuizConfig } from './components/QuizSettings';
 import { Auth } from './components/Auth';
+import { QuizList } from './components/QuizList';
 import { Button } from './components/ui/button';
 import { BookOpen, RotateCcw, LogOut, BarChart3, Settings } from 'lucide-react';
 import { apiClient, Quiz } from './utils/api-client';
@@ -20,6 +21,7 @@ export default function App() {
   const [loading, setLoading] = useState(true);
   const [showStats, setShowStats] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  const [showQuizList, setShowQuizList] = useState(false);
   const [stats, setStats] = useState({ totalQuizzes: 0, totalCorrect: 0, totalAnswers: 0 });
   const [quizConfig, setQuizConfig] = useState<QuizConfig | null>(null);
 
@@ -210,6 +212,9 @@ export default function App() {
   if (showSettings) {
     return <QuizSettings onStart={handleQuizStart} onShowStats={() => setShowStats(true)} />;
   }
+  if (showQuizList) {
+    return <QuizList onBack={() => { setShowQuizList(false); setShowStats(true); }} />;
+  }
 
   if (showStats) {
     return (
@@ -226,6 +231,7 @@ export default function App() {
             >
               戻る
             </Button>
+            <Button onClick={() => { setShowStats(false); setShowQuizList(true); }}>クイズ一覧を見る</Button>
           </div>
 
           <div className="grid gap-4 md:grid-cols-3 mb-6">
