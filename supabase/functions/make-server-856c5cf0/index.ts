@@ -81,17 +81,9 @@ app.post("/make-server-856c5cf0/debug/init-categories", async (c) => {
   }
 });
 
-// ===== Helper Functions for Auth =====
-
-// Convert name to email format for Supabase Auth
-function nameToEmail(name: string): string {
-  const sanitized = name.toLowerCase().trim().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '');
-  return `${sanitized}@quizapp.test`;
-}
-
 // ===== User Authentication Endpoints =====
 
-// Login endpoint with name
+// Login endpoint
 app.post("/make-server-856c5cf0/login", async (c) => {
   try {
     const { name, password } = await c.req.json();
@@ -100,30 +92,33 @@ app.post("/make-server-856c5cf0/login", async (c) => {
       return c.json({ error: 'Name and password are required' }, 400);
     }
 
-    // Convert name to email format
-    const email = nameToEmail(name);
+    // Find user by name in KV store
+    const allUsers = await kv.getByPrefix('user:');
+    const userRecord = allUsers.find(u => u.value?.name === name);
 
-    // Try to sign in with Supabase Auth
+    if (!userRecord) {
+      return c.json({ error: 'Invalid credentials' }, 401);
+    }
+
+    const userProfile = userRecord.value;
+
+    // Sign in with Supabase Auth using email/password
     const { data, error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
+      email: userProfile.email,
+      password: password,
     });
 
     if (error) {
       console.log(`Login error: ${error.message}`);
-      return c.json({ error: 'ログインに失敗しました。名前またはパスワードが正しくありません。' }, 401);
-    }
-
-    if (!data.session) {
-      return c.json({ error: 'セッションの作成に失敗しました' }, 500);
+      return c.json({ error: 'Invalid credentials' }, 401);
     }
 
     return c.json({
-      message: 'Login successful',
       accessToken: data.session.access_token,
       user: {
-        id: data.user.id,
-        name: data.user.user_metadata?.name || name,
+        id: userProfile.id,
+        name: userProfile.name,
+        email: userProfile.email,
       }
     });
   } catch (error) {
@@ -141,8 +136,16 @@ app.post("/make-server-856c5cf0/signup", async (c) => {
       return c.json({ error: 'Name and password are required' }, 400);
     }
 
-    // Convert name to email format
-    const email = nameToEmail(name);
+    // Check if user with this name already exists
+    const allUsers = await kv.getByPrefix('user:');
+    const existingUser = allUsers.find(u => u.value?.name === name);
+
+    if (existingUser) {
+      return c.json({ error: 'User with this name already exists' }, 400);
+    }
+
+    // Generate a unique email from the name
+    const email = `${name.toLowerCase().replace(/\s+/g, '')}@quizapp.local`;
 
     // Create user in Supabase Auth
     const { data, error } = await supabase.auth.admin.createUser({
@@ -155,9 +158,6 @@ app.post("/make-server-856c5cf0/signup", async (c) => {
 
     if (error) {
       console.log(`Signup error: ${error.message}`);
-      if (error.message.includes('already registered')) {
-        return c.json({ error: 'この名前は既に使用されています' }, 400);
-      }
       return c.json({ error: error.message }, 400);
     }
 
@@ -188,13 +188,13 @@ app.post("/make-server-856c5cf0/signup", async (c) => {
 
 // ===== Quiz Management Endpoints =====
 
-// Get all quizzes (with optional filtering)
+// Get all quizzes
 app.get("/make-server-856c5cf0/quizzes", async (c) => {
   try {
     console.log('Fetching quizzes from KV store...');
     const quizzes = await kv.getByPrefix('quiz:');
     console.log('Quizzes from KV:', quizzes);
-
+    
     // If no quizzes exist, initialize with default data
     if (!quizzes || quizzes.length === 0) {
       console.log('No quizzes found, initializing...');
@@ -202,43 +202,15 @@ app.get("/make-server-856c5cf0/quizzes", async (c) => {
       await initializeCategories();
       const newQuizzes = await kv.getByPrefix('quiz:');
       console.log('New quizzes after initialization:', newQuizzes);
-      return c.json({ quizzes: newQuizzes.filter(Boolean) });
+      return c.json({ quizzes: newQuizzes.map(q => q.value).filter(Boolean) });
     }
 
     // Filter out any null/undefined values and ensure all quizzes have required properties
-    let validQuizzes = quizzes
+    const validQuizzes = quizzes
+      .map(q => q.value)
       .filter(quiz => quiz && quiz.id && quiz.question && quiz.answer);
 
-    // Get query parameters for filtering
-    const subject = c.req.query('subject');
-    const unit = c.req.query('unit');
-    const difficulty = c.req.query('difficulty');
-    const count = c.req.query('count');
-
-    console.log('Query params:', { subject, unit, difficulty, count });
-
-    // Apply filters if provided
-    if (subject && subject !== 'all') {
-      validQuizzes = validQuizzes.filter(quiz => quiz.subject === subject);
-    }
-
-    if (unit && unit !== 'all') {
-      validQuizzes = validQuizzes.filter(quiz => quiz.unit === unit);
-    }
-
-    if (difficulty && difficulty !== 'mix') {
-      const difficultyNum = parseInt(difficulty);
-      validQuizzes = validQuizzes.filter(quiz => quiz.difficulty === difficultyNum);
-    }
-
-    // Shuffle quizzes for random selection
-    if (count) {
-      const shuffled = [...validQuizzes].sort(() => Math.random() - 0.5);
-      const countNum = parseInt(count);
-      validQuizzes = shuffled.slice(0, Math.min(countNum, shuffled.length));
-    }
-
-    console.log('Valid quizzes to return:', validQuizzes.length);
+    console.log('Valid quizzes to return:', validQuizzes);
     return c.json({ quizzes: validQuizzes });
   } catch (error) {
     console.log(`Error fetching quizzes: ${error}`);
@@ -274,10 +246,11 @@ app.get("/make-server-856c5cf0/categories", async (c) => {
     if (!categories || categories.length === 0) {
       await initializeCategories();
       const newCategories = await kv.getByPrefix('category:');
-      return c.json({ categories: newCategories.filter(Boolean) });
+      return c.json({ categories: newCategories.map(cat => cat.value).filter(Boolean) });
     }
 
     const validCategories = categories
+      .map(cat => cat.value)
       .filter(category => category && category.id && category.name);
 
     return c.json({ categories: validCategories });
@@ -412,365 +385,139 @@ async function initializeQuizzes() {
   const defaultQuizzes = [
     {
       id: 'quiz:1',
-      question: '大名の領地や権限のことを何といい、江戸時代の支配体制を何といいますか。',
-      answer: '藩（はん）・幕藩体制（ばくはんたいせい）',
-      explanation: '大名が支配する領地と権限の単位を「藩」といい、将軍と大名が全国を支配する仕組みを「幕藩体制」と呼びます。',
+      question: '江戸幕府の支配のしくみを、「○○体制」という一言で答えなさい。',
+      answer: '幕藩体制',
+      explanation: '江戸時代は、将軍が直接支配する**幕府の領地（幕領）**と、各地の**大名が支配する藩**が組み合わさって国を治めていました。このしくみをまとめて**幕藩体制**といいます。幕府が全国の大名を従えたしくみをおさえる、江戸時代の最重要キーワードです。',
       type: 'text',
       difficulty: 2,
       subject: '社会',
       unit: '強かな支配の中で生きた人々',
+      categoryId: 'category:7',
       order: 1,
     },
     {
       id: 'quiz:2',
-      question: '大名を3つの区分に分けると、何と何と何になりますか。',
-      answer: '親藩（しんぱん）・譜代大名（ふだいだいみょう）・外様大名（とざまだいみょう）',
-      explanation: '徳川家との関係や仕え始めた時期によって、大名は親藩・譜代・外様に分かれます。',
+      question: '江戸幕府が大名をコントロールするために行った制度で、「大名に **1年おきに江戸と自分の領地を行き来させる** 制度」を何といいますか。',
+      answer: '参勤交代',
+      explanation: '**参勤交代**は、3代将軍徳川家光のときに決められた制度です。大名は1年ごとに江戸と領地を行き来し、妻子は人質のように江戸に住まわせ、行き来にかかるお金で、大名の財政も苦しくさせたことで、**反乱を起こさせないようにした**のが目的です。',
       type: 'text',
-      difficulty: 3,
+      difficulty: 2,
       subject: '社会',
       unit: '強かな支配の中で生きた人々',
+      categoryId: 'category:7',
       order: 2,
     },
     {
       id: 'quiz:3',
-      question: '徳川氏の親戚の大名である親藩のうち、特に格式の高い3つの藩を何といいますか。',
-      answer: '御三家（ごさんけ）',
-      explanation: '徳川氏一門の中で特に重視されたのが尾張・紀伊・水戸の三家で、御三家と呼ばれました。',
+      question: '江戸時代の村では、年貢の納入や犯罪防止のために、数戸の家を1組にまとめて**連帯責任**を負わせるしくみがありました。これを何といいますか。',
+      answer: '五人組',
+      explanation: '**五人組**は、だいたい5戸前後を1グループにして、年貢をきちんと納める、税を逃れようとする者・犯罪者を出さないといったことを、グループみんなで責任を持たせる制度です。1人が約束を破ると、**グループ全員が責任を問われる**ので、村人どうしで監視させるねらいがありました。',
       type: 'text',
-      difficulty: 2,
+      difficulty: 3,
       subject: '社会',
       unit: '強かな支配の中で生きた人々',
+      categoryId: 'category:7',
       order: 3,
     },
     {
       id: 'quiz:4',
-      question: '御三家をすべて答えなさい。',
-      answer: '尾張藩・紀伊藩・水戸藩',
-      explanation: '御三家は尾張（愛知）、紀伊（和歌山）、水戸（茨城）にあたります。',
+      question: '江戸時代の身分制度で、次の語を**身分の高い順**に並べかえなさい。\n\n武士　／　町人　／　百姓',
+      answer: '武士 → 百姓 → 町人',
+      explanation: '江戸時代の身分は、**士農工商（しのうこうしょう）**と教わることが多いです。士：武士、農：百姓（農民）、工：職人、商：商人・問屋など。町人は、主に**職人と商人**を合わせた呼び方なので、**武士 → 百姓 → 町人（職人・商人）**の順で押さえておけばOKです。',
       type: 'text',
-      difficulty: 3,
+      difficulty: 2,
       subject: '社会',
       unit: '強かな支配の中で生きた人々',
+      categoryId: 'category:7',
       order: 4,
     },
     {
       id: 'quiz:5',
-      question: '尾張は今の何県、紀伊は今の何県、水戸は今の何県にあたりますか。',
-      answer: '尾張＝愛知、紀伊＝和歌山、水戸＝茨城',
-      explanation: '現在の都道府県に置き換えるとこの組み合わせになります。',
+      question: '江戸時代の百姓のうち、自分の田畑を持ち、年貢を納める義務を負っていた百姓を何といいますか。また、土地を持たず、他人の田畑を借りて耕していた百姓を何といいますか。',
+      answer: '本百姓、水呑百姓',
+      explanation: '**本百姓**は、田畑を所有し、年貢を直接納める義務を持つ、村の「正規メンバー」のような存在です。一方、**水呑百姓**は土地を持たず、他人の田畑を借りて耕して生活していました。本百姓の生活が苦しくなると、土地を手放して水呑百姓が増えていき、村の経済にも影響しました。',
       type: 'text',
-      difficulty: 2,
+      difficulty: 3,
       subject: '社会',
       unit: '強かな支配の中で生きた人々',
+      categoryId: 'category:7',
       order: 5,
     },
     {
       id: 'quiz:6',
-      question: '譜代大名とは、どの戦い以前から徳川氏に従っていた大名のことですか。',
-      answer: '関ヶ原の戦い',
-      explanation: '関ヶ原以前から徳川氏に仕えていた大名を「譜代大名」と呼びます。',
+      question: '江戸時代の鎖国の中で、ヨーロッパの国の中で唯一、日本との貿易を許された国はどこですか。また、その国との貿易の窓口となった港はどこですか。',
+      answer: 'オランダ、長崎',
+      explanation: '鎖国政策の中で、日本は**ポルトガル人を追放**し、キリスト教のひろがりをおそれましたが、オランダは宗教活動をほとんど行わなかったため、例外的に貿易を許されました。貿易の窓口は、**長崎の出島**という人工島で、オランダ商館が置かれ、銅・銀・生糸などを取引しました。ここを通じて、ヨーロッパの科学技術や医学などの知識（蘭学）が日本に入ってきました。',
       type: 'text',
-      difficulty: 2,
+      difficulty: 3,
       subject: '社会',
-      unit: '強かな支配の中で生きた人々',
+      unit: '国を閉ざした日本',
+      categoryId: 'category:8',
       order: 6,
     },
     {
       id: 'quiz:7',
-      question: '外様大名の領地は、江戸から見てどのような場所に多くありましたか。',
-      answer: '江戸から遠く',
-      explanation: '幕府からの警戒のため外様大名は遠隔地に配置されました。',
-      type: 'text',
-      difficulty: 1,
+      question: '江戸時代の鎖国のとき、日本が公式に交流・貿易をしていた相手と、その窓口となった場所の正しい組み合わせを、次から**すべて**選びなさい。\n\nア．中国 － 長崎\nイ．オランダ － 長崎\nウ．朝鮮 － 対馬\nエ．琉球 － 薩摩\nオ．アイヌの人びと － 松前',
+      answer: 'ア・イ・ウ・エ・オ',
+      explanation: '鎖国といっても、**完全に国を閉ざしたわけではなく**、限られた窓口で外国と交流していました。代表的な組み合わせは次のとおりです。中国（清）… 長崎、オランダ… 長崎（出島）、朝鮮… 対馬の藩を通じて（朝鮮通信使）、琉球王国… 薩摩藩を通じて、アイヌの人びと… 松前藩（蝦夷地）を通じて。これらを一気に覚える問題なので、やや難しめですが、**表にして整理して覚える**と得点源になります。',
+      type: 'multiple-choice',
+      choices: [
+        'ア．中国 － 長崎',
+        'イ．オランダ － 長崎',
+        'ウ．朝鮮 － 対馬',
+        'エ．琉球 － 薩摩',
+        'オ．アイヌの人びと － 松前'
+      ],
+      difficulty: 4,
       subject: '社会',
-      unit: '強かな支配の中で生きた人々',
+      unit: '国を閉ざした日本',
+      categoryId: 'category:8',
       order: 7,
     },
     {
       id: 'quiz:8',
-      question: '徳川家康と2代将軍秀忠は、1614年と1615年のどの戦いで豊臣氏を滅ぼしましたか。',
-      answer: '大阪冬の陣・大阪夏の陣・豊臣氏',
-      explanation: '大坂の陣によって豊臣氏が滅び、江戸幕府の支配が確立しました。',
+      question: '江戸幕府がキリスト教を厳しく禁止するきっかけの一つとなった、1637年〜38年に起こった大きな一揆を何といいますか。また、その一揆が起こった地方名を答えなさい。',
+      answer: '島原・天草一揆、九州地方',
+      explanation: '重い年貢やキリスト教信者への弾圧に苦しんだ農民・キリシタンたちが、九州の島原・天草地方で起こしたのが**島原・天草一揆**です。これを鎮圧した幕府は、キリスト教をさらに厳しく禁止、外国人宣教師・ポルトガル人の追放などを進め、のちの**鎖国政策強化**へとつながっていきました。',
       type: 'text',
-      difficulty: 3,
+      difficulty: 4,
       subject: '社会',
-      unit: '強かな支配の中で生きた人々',
+      unit: '国を閉ざした日本',
+      categoryId: 'category:7',
       order: 8,
     },
     {
       id: 'quiz:9',
-      question: '大阪夏の陣のあとに出された、大名統制のための決まりを何といいますか。',
-      answer: '武家諸法度',
-      explanation: '大名を幕府の管理下に置くための根本法令です。',
+      question: '江戸時代、日本は朝鮮とのあいだで友好関係を保っていました。朝鮮との外交を担当した日本側の藩を何といい、そのとき日本に送られてきた使節を何と呼びましたか。',
+      answer: '対馬藩、朝鮮通信使',
+      explanation: '鎖国といっても、周辺諸国との外交は続いており、**朝鮮との窓口が対馬藩**でした。朝鮮からは、将軍の代替わりのときなどに**朝鮮通信使**が派遣され、日本文化にも大きな影響を与えました。絵画・儒学・儀礼など、文化交流の側面も重要なポイントです。',
       type: 'text',
-      difficulty: 2,
+      difficulty: 3,
       subject: '社会',
-      unit: '強かな支配の中で生きた人々',
+      unit: '国を閉ざした日本',
+      categoryId: 'category:8',
       order: 9,
     },
     {
       id: 'quiz:10',
-      question: '大阪夏の陣のあとに出された、朝廷や公家を統制するための決まりを何といいますか。',
-      answer: '禁中並公家諸法度',
-      explanation: '天皇・公家の政治力を抑え、幕府の支配体制を強化しました。',
+      question: '鎖国の中でも、ヨーロッパの学問や科学が日本へ入ってくる道は完全には閉ざされていませんでした。オランダ語で書かれた学問を何と呼び、その学問が特に発達した分野を一つ答えなさい。',
+      answer: '蘭学、医学',
+      explanation: 'オランダとの貿易を通じて入ってきた書物をもとに発達した学問が**蘭学**です。特に**医学**の分野が有名で、解体新書（杉田玄白ら）などは典型的な例です。「鎖国＝西洋を完全シャットアウト」ではなく、**出島を通じて知識は入ってきていた**という視点が、中学受験ではよく問われます。',
       type: 'text',
       difficulty: 3,
       subject: '社会',
-      unit: '強かな支配の中で生きた人々',
+      unit: '国を閉ざした日本',
+      categoryId: 'category:8',
       order: 10,
-    },
-    {
-      id: 'quiz:11',
-      question: '徳川家康は誰が始めた何という貿易を受け継ぎ、誰と誰を外交顧問としましたか。',
-      answer: '豊臣秀吉の朱印船貿易・ウィリアム・アダムズ・ヤン・ヨーステン',
-      explanation: '朱印船貿易を継続し、外国人航海士2名を外交に活用しました。',
-      type: 'text',
-      difficulty: 4,
-      subject: '社会',
-      unit: '強かな支配の中で生きた人々',
-      order: 11,
-    },
-    {
-      id: 'quiz:12',
-      question: '朱印船貿易において貿易の許可証と、その許可を得た船を何といいますか。',
-      answer: '朱印状・朱印船',
-      explanation: '将軍が発行する朱印状を持つ船のみ海外貿易が認められました。',
-      type: 'text',
-      difficulty: 2,
-      subject: '社会',
-      unit: '強かな支配の中で生きた人々',
-      order: 12,
-    },
-    {
-      id: 'quiz:13',
-      question: '朱印船貿易で東南アジアにできた日本人町を何といいますか。',
-      answer: '日本町',
-      explanation: '多くの日本人が移住し自治や商業活動を行いました。',
-      type: 'text',
-      difficulty: 2,
-      subject: '社会',
-      unit: '強かな支配の中で生きた人々',
-      order: 13,
-    },
-    {
-      id: 'quiz:14',
-      question: 'シャム（タイ）で活躍した日本人は誰ですか。',
-      answer: '山田長政',
-      explanation: '日本人傭兵団の指導者として王の信任を得ました。',
-      type: 'text',
-      difficulty: 3,
-      subject: '社会',
-      unit: '強かな支配の中で生きた人々',
-      order: 14,
-    },
-    {
-      id: 'quiz:15',
-      question: '江戸幕府の3代将軍は誰ですか。',
-      answer: '徳川家光',
-      explanation: '参勤交代の制度化や鎖国完成など、幕府体制を固めました。',
-      type: 'text',
-      difficulty: 2,
-      subject: '社会',
-      unit: '強かな支配の中で生きた人々',
-      order: 15,
-    },
-    {
-      id: 'quiz:16',
-      question: '徳川家光の時代の政策・出来事を4つ答えなさい。',
-      answer: '参勤交代・島原天草一揆・キリスト教禁止の徹底・鎖国',
-      explanation: '家光時代に幕府の統制強化につながる重要政策が多数実施されました。',
-      type: 'text',
-      difficulty: 4,
-      subject: '社会',
-      unit: '国を閉ざした日本',
-      order: 16,
-    },
-    {
-      id: 'quiz:17',
-      question: 'キリスト教禁止のために設けられた制度と行為は何ですか。',
-      answer: '寺請制度・絵踏',
-      explanation: '寺に所属させる寺請制度と、像を踏ませる絵踏によって隠れキリシタンを摘発しました。',
-      type: 'text',
-      difficulty: 3,
-      subject: '社会',
-      unit: '国を閉ざした日本',
-      order: 17,
-    },
-    {
-      id: 'quiz:18',
-      question: '何年にどこの国の船を禁じて鎖国が完成しましたか。',
-      answer: '1639年・ポルトガル船',
-      explanation: 'ポルトガルとの断交により、鎖国体制が最終的に形を整えました。',
-      type: 'text',
-      difficulty: 3,
-      subject: '社会',
-      unit: '国を閉ざした日本',
-      order: 18,
-    },
-    {
-      id: 'quiz:19',
-      question: '鎖国下で貿易が許された国を2つ答えなさい。',
-      answer: 'オランダ・中国',
-      explanation: '布教に積極的でなかったためこの2国に限定されました。',
-      type: 'text',
-      difficulty: 2,
-      subject: '社会',
-      unit: '国を閉ざした日本',
-      order: 19,
-    },
-    {
-      id: 'quiz:20',
-      question: '1641年、オランダ商館はどこからどこの何へ移されましたか。',
-      answer: '平戸から長崎の出島へ',
-      explanation: '外国人の活動を制限するため人工島・出島へ移転させました。',
-      type: 'text',
-      difficulty: 3,
-      subject: '社会',
-      unit: '国を閉ざした日本',
-      order: 20,
-    },
-    {
-      id: 'quiz:21',
-      question: '朝鮮との窓口となった藩と使節の名前を答えなさい。',
-      answer: '対馬藩の宗氏・朝鮮通信使',
-      explanation: '外交の門戸を開いた対馬藩宗氏が中心となり、朝鮮通信使が派遣されました。',
-      type: 'text',
-      difficulty: 3,
-      subject: '社会',
-      unit: '国を閉ざした日本',
-      order: 21,
-    },
-    {
-      id: 'quiz:22',
-      question: '江戸時代の農民に課された連帯責任の仕組みを何といいますか。',
-      answer: '五人組',
-      explanation: '年貢の納入などを数戸のグループで互いに監視させました。',
-      type: 'text',
-      difficulty: 2,
-      subject: '社会',
-      unit: '国を閉ざした日本',
-      order: 22,
-    },
-    {
-      id: 'quiz:23',
-      question: '江戸時代前半の文化を何文化といい、中心地はどこですか。',
-      answer: '元禄文化・上方（京都・大阪）',
-      explanation: '町人文化が発展し、上方を中心に文化が栄えました。',
-      type: 'text',
-      difficulty: 3,
-      subject: '社会',
-      unit: '国を閉ざした日本',
-      order: 23,
-    },
-    {
-      id: 'quiz:24',
-      question: '「見返り美人図」の作者は誰ですか。',
-      answer: '菱川師宣',
-      explanation: '初期浮世絵の代表的画家で、美人画で知られます。',
-      type: 'text',
-      difficulty: 2,
-      subject: '社会',
-      unit: '国を閉ざした日本',
-      order: 24,
-    },
-    {
-      id: 'quiz:25',
-      question: '人形浄瑠璃の代表的な脚本家は誰ですか。',
-      answer: '近松門左衛門',
-      explanation: '「曽根崎心中」など名作を多数執筆しました。',
-      type: 'text',
-      difficulty: 3,
-      subject: '社会',
-      unit: '国を閉ざした日本',
-      order: 25,
-    },
-    {
-      id: 'quiz:26',
-      question: '元禄文化の時期の代表的俳人は誰ですか。',
-      answer: '松尾芭蕉',
-      explanation: '「奥の細道」で知られる俳諧の巨匠です。',
-      type: 'text',
-      difficulty: 2,
-      subject: '社会',
-      unit: '国を閉ざした日本',
-      order: 26,
-    },
-    {
-      id: 'quiz:27',
-      question: '江戸時代後半の文化を何文化といい、その中心地はどこですか。',
-      answer: '化政文化・江戸',
-      explanation: '江戸の町人文化が大きく花開いた時期です。',
-      type: 'text',
-      difficulty: 3,
-      subject: '社会',
-      unit: '国を閉ざした日本',
-      order: 27,
-    },
-    {
-      id: 'quiz:28',
-      question: '庶民の子どもに読み書きそろばんを教えた場所を何といいますか。',
-      answer: '寺子屋',
-      explanation: '全国に広く広まり、基本教育の中心となりました。',
-      type: 'text',
-      difficulty: 2,
-      subject: '社会',
-      unit: '国を閉ざした日本',
-      order: 28,
-    },
-    {
-      id: 'quiz:29',
-      question: 'キリスト教と関係のない洋書の輸入を許可したことで起こった学問は何ですか。',
-      answer: '蘭学',
-      explanation: 'オランダ語の医学・科学書の研究が盛んになりました。',
-      type: 'text',
-      difficulty: 3,
-      subject: '社会',
-      unit: '国を閉ざした日本',
-      order: 29,
-    },
-    {
-      id: 'quiz:30',
-      question: '『ターヘル・アナトミア』を翻訳し「解体新書」を出版した2名と原語は何語ですか。',
-      answer: '杉田玄白・前野良沢・オランダ語・解体新書',
-      explanation: '西洋医学を日本に紹介した重要な翻訳書です。',
-      type: 'text',
-      difficulty: 4,
-      subject: '社会',
-      unit: '国を閉ざした日本',
-      order: 30,
-    },
-    {
-      id: 'quiz:31',
-      question: '『富嶽三十六景』の作者は誰ですか。',
-      answer: '葛飾北斎',
-      explanation: '富士山を題材とした代表的浮世絵シリーズです。',
-      type: 'text',
-      difficulty: 2,
-      subject: '社会',
-      unit: '国を閉ざした日本',
-      order: 31,
-    },
-    {
-      id: 'quiz:32',
-      question: '『東海道五十三次』の作者は誰ですか。',
-      answer: '歌川広重',
-      explanation: '宿場町を描いた風景浮世絵で広く知られています。',
-      type: 'text',
-      difficulty: 2,
-      subject: '社会',
-      unit: '国を閉ざした日本',
-      order: 32,
     }
   ];
 
   for (const quiz of defaultQuizzes) {
     await kv.set(quiz.id, quiz);
   }
-
+  
   console.log('Quizzes initialized successfully');
 }
-
 
 async function initializeCategories() {
   const categories = [

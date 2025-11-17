@@ -83,14 +83,69 @@ app.post("/make-server-856c5cf0/debug/init-categories", async (c) => {
 
 // ===== User Authentication Endpoints =====
 
+// Login endpoint
+app.post("/make-server-856c5cf0/login", async (c) => {
+  try {
+    const { name, password } = await c.req.json();
+
+    if (!name || !password) {
+      return c.json({ error: 'Name and password are required' }, 400);
+    }
+
+    // Find user by name in KV store
+    const allUsers = await kv.getByPrefix('user:');
+    const userRecord = allUsers.find(u => u.value?.name === name);
+
+    if (!userRecord) {
+      return c.json({ error: 'Invalid credentials' }, 401);
+    }
+
+    const userProfile = userRecord.value;
+
+    // Sign in with Supabase Auth using email/password
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email: userProfile.email,
+      password: password,
+    });
+
+    if (error) {
+      console.log(`Login error: ${error.message}`);
+      return c.json({ error: 'Invalid credentials' }, 401);
+    }
+
+    return c.json({
+      accessToken: data.session.access_token,
+      user: {
+        id: userProfile.id,
+        name: userProfile.name,
+        email: userProfile.email,
+      }
+    });
+  } catch (error) {
+    console.log(`Login error: ${error}`);
+    return c.json({ error: 'Internal server error during login' }, 500);
+  }
+});
+
 // Sign up endpoint
 app.post("/make-server-856c5cf0/signup", async (c) => {
   try {
-    const { email, password, name } = await c.req.json();
+    const { password, name } = await c.req.json();
 
-    if (!email || !password || !name) {
-      return c.json({ error: 'Email, password, and name are required' }, 400);
+    if (!password || !name) {
+      return c.json({ error: 'Name and password are required' }, 400);
     }
+
+    // Check if user with this name already exists
+    const allUsers = await kv.getByPrefix('user:');
+    const existingUser = allUsers.find(u => u.value?.name === name);
+
+    if (existingUser) {
+      return c.json({ error: 'User with this name already exists' }, 400);
+    }
+
+    // Generate a unique email from the name
+    const email = `${name.toLowerCase().replace(/\s+/g, '')}@quizapp.local`;
 
     // Create user in Supabase Auth
     const { data, error } = await supabase.auth.admin.createUser({
@@ -121,9 +176,9 @@ app.post("/make-server-856c5cf0/signup", async (c) => {
       totalAnswers: 0,
     });
 
-    return c.json({ 
+    return c.json({
       message: 'User created successfully',
-      userId: data.user.id 
+      userId: data.user.id
     });
   } catch (error) {
     console.log(`Signup error: ${error}`);
@@ -335,6 +390,8 @@ async function initializeQuizzes() {
       explanation: '江戸時代は、将軍が直接支配する**幕府の領地（幕領）**と、各地の**大名が支配する藩**が組み合わさって国を治めていました。このしくみをまとめて**幕藩体制**といいます。幕府が全国の大名を従えたしくみをおさえる、江戸時代の最重要キーワードです。',
       type: 'text',
       difficulty: 2,
+      subject: '社会',
+      unit: '強かな支配の中で生きた人々',
       categoryId: 'category:7',
       order: 1,
     },
@@ -345,6 +402,8 @@ async function initializeQuizzes() {
       explanation: '**参勤交代**は、3代将軍徳川家光のときに決められた制度です。大名は1年ごとに江戸と領地を行き来し、妻子は人質のように江戸に住まわせ、行き来にかかるお金で、大名の財政も苦しくさせたことで、**反乱を起こさせないようにした**のが目的です。',
       type: 'text',
       difficulty: 2,
+      subject: '社会',
+      unit: '強かな支配の中で生きた人々',
       categoryId: 'category:7',
       order: 2,
     },
@@ -355,6 +414,8 @@ async function initializeQuizzes() {
       explanation: '**五人組**は、だいたい5戸前後を1グループにして、年貢をきちんと納める、税を逃れようとする者・犯罪者を出さないといったことを、グループみんなで責任を持たせる制度です。1人が約束を破ると、**グループ全員が責任を問われる**ので、村人どうしで監視させるねらいがありました。',
       type: 'text',
       difficulty: 3,
+      subject: '社会',
+      unit: '強かな支配の中で生きた人々',
       categoryId: 'category:7',
       order: 3,
     },
@@ -365,6 +426,8 @@ async function initializeQuizzes() {
       explanation: '江戸時代の身分は、**士農工商（しのうこうしょう）**と教わることが多いです。士：武士、農：百姓（農民）、工：職人、商：商人・問屋など。町人は、主に**職人と商人**を合わせた呼び方なので、**武士 → 百姓 → 町人（職人・商人）**の順で押さえておけばOKです。',
       type: 'text',
       difficulty: 2,
+      subject: '社会',
+      unit: '強かな支配の中で生きた人々',
       categoryId: 'category:7',
       order: 4,
     },
@@ -375,6 +438,8 @@ async function initializeQuizzes() {
       explanation: '**本百姓**は、田畑を所有し、年貢を直接納める義務を持つ、村の「正規メンバー」のような存在です。一方、**水呑百姓**は土地を持たず、他人の田畑を借りて耕して生活していました。本百姓の生活が苦しくなると、土地を手放して水呑百姓が増えていき、村の経済にも影響しました。',
       type: 'text',
       difficulty: 3,
+      subject: '社会',
+      unit: '強かな支配の中で生きた人々',
       categoryId: 'category:7',
       order: 5,
     },
@@ -385,6 +450,8 @@ async function initializeQuizzes() {
       explanation: '鎖国政策の中で、日本は**ポルトガル人を追放**し、キリスト教のひろがりをおそれましたが、オランダは宗教活動をほとんど行わなかったため、例外的に貿易を許されました。貿易の窓口は、**長崎の出島**という人工島で、オランダ商館が置かれ、銅・銀・生糸などを取引しました。ここを通じて、ヨーロッパの科学技術や医学などの知識（蘭学）が日本に入ってきました。',
       type: 'text',
       difficulty: 3,
+      subject: '社会',
+      unit: '国を閉ざした日本',
       categoryId: 'category:8',
       order: 6,
     },
@@ -402,6 +469,8 @@ async function initializeQuizzes() {
         'オ．アイヌの人びと － 松前'
       ],
       difficulty: 4,
+      subject: '社会',
+      unit: '国を閉ざした日本',
       categoryId: 'category:8',
       order: 7,
     },
@@ -412,6 +481,8 @@ async function initializeQuizzes() {
       explanation: '重い年貢やキリスト教信者への弾圧に苦しんだ農民・キリシタンたちが、九州の島原・天草地方で起こしたのが**島原・天草一揆**です。これを鎮圧した幕府は、キリスト教をさらに厳しく禁止、外国人宣教師・ポルトガル人の追放などを進め、のちの**鎖国政策強化**へとつながっていきました。',
       type: 'text',
       difficulty: 4,
+      subject: '社会',
+      unit: '国を閉ざした日本',
       categoryId: 'category:7',
       order: 8,
     },
@@ -422,6 +493,8 @@ async function initializeQuizzes() {
       explanation: '鎖国といっても、周辺諸国との外交は続いており、**朝鮮との窓口が対馬藩**でした。朝鮮からは、将軍の代替わりのときなどに**朝鮮通信使**が派遣され、日本文化にも大きな影響を与えました。絵画・儒学・儀礼など、文化交流の側面も重要なポイントです。',
       type: 'text',
       difficulty: 3,
+      subject: '社会',
+      unit: '国を閉ざした日本',
       categoryId: 'category:8',
       order: 9,
     },
@@ -432,6 +505,8 @@ async function initializeQuizzes() {
       explanation: 'オランダとの貿易を通じて入ってきた書物をもとに発達した学問が**蘭学**です。特に**医学**の分野が有名で、解体新書（杉田玄白ら）などは典型的な例です。「鎖国＝西洋を完全シャットアウト」ではなく、**出島を通じて知識は入ってきていた**という視点が、中学受験ではよく問われます。',
       type: 'text',
       difficulty: 3,
+      subject: '社会',
+      unit: '国を閉ざした日本',
       categoryId: 'category:8',
       order: 10,
     }

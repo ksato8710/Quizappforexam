@@ -210,7 +210,10 @@ export default function App() {
   }
 
   if (showSettings) {
-    return <QuizSettings onStart={handleQuizStart} onShowStats={() => setShowStats(true)} />;
+    return <QuizSettings onStart={handleQuizStart} onShowStats={() => {
+      setShowStats(true);
+      setShowSettings(false);
+    }} />;
   }
   if (showQuizList) {
     return <QuizList onBack={() => { setShowQuizList(false); setShowStats(true); }} />;
