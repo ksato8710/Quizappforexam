@@ -83,12 +83,20 @@ export function QuizSettings({ onStart, onShowStats }: QuizSettingsProps) {
           <div className="mb-8">
             <Label className="text-gray-900 mb-3 block">教科</Label>
             <Select value={selectedSubject} onValueChange={setSelectedSubject}>
-              <SelectTrigger className="w-full">
+              <SelectTrigger className="w-full h-12 rounded-lg border-2 border-gray-200 px-3 text-left text-gray-800 font-medium focus-visible:ring-2 focus-visible:ring-indigo-200 focus-visible:border-indigo-500">
                 <SelectValue />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent
+                position="popper"
+                sideOffset={4}
+                className="w-[var(--radix-select-trigger-width)] min-w-[var(--radix-select-trigger-width)] rounded-xl border border-gray-100 bg-white shadow-xl"
+              >
                 {subjects.map((subject) => (
-                  <SelectItem key={subject.value} value={subject.value}>
+                  <SelectItem
+                    key={subject.value}
+                    value={subject.value}
+                    className="text-gray-800 text-sm font-medium px-4 py-2 focus:bg-indigo-50 data-[highlighted]:bg-indigo-50 data-[state=checked]:bg-indigo-100 data-[state=checked]:text-indigo-700"
+                  >
                     {subject.label}
                   </SelectItem>
                 ))}
@@ -100,12 +108,20 @@ export function QuizSettings({ onStart, onShowStats }: QuizSettingsProps) {
           <div className="mb-8">
             <Label className="text-gray-900 mb-3 block">単元</Label>
             <Select value={selectedUnit} onValueChange={setSelectedUnit}>
-              <SelectTrigger className="w-full">
+              <SelectTrigger className="w-full h-12 rounded-lg border-2 border-gray-200 px-3 text-left text-gray-800 font-medium focus-visible:ring-2 focus-visible:ring-indigo-200 focus-visible:border-indigo-500">
                 <SelectValue />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent
+                position="popper"
+                sideOffset={4}
+                className="w-[var(--radix-select-trigger-width)] min-w-[var(--radix-select-trigger-width)] rounded-xl border border-gray-100 bg-white shadow-xl"
+              >
                 {units.map((unit) => (
-                  <SelectItem key={unit.value} value={unit.value}>
+                  <SelectItem
+                    key={unit.value}
+                    value={unit.value}
+                    className="text-gray-800 text-sm font-medium px-4 py-2 focus:bg-indigo-50 data-[highlighted]:bg-indigo-50 data-[state=checked]:bg-indigo-100 data-[state=checked]:text-indigo-700"
+                  >
                     {unit.label}
                   </SelectItem>
                 ))}

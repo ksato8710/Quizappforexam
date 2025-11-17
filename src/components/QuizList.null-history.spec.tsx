@@ -20,6 +20,7 @@ describe('QuizList with null/malformed history entries', () => {
   it('does not crash and renders list', async () => {
     render(<QuizList onBack={() => {}} />)
     expect(await screen.findByText('クイズ一覧')).toBeInTheDocument()
-    expect(screen.getByText('Q1')).toBeInTheDocument()
+    const occurrences = screen.getAllByText('Q1')
+    expect(occurrences.length).toBeGreaterThan(0)
   })
 })

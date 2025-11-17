@@ -205,10 +205,39 @@ app.get("/make-server-856c5cf0/quizzes", async (c) => {
       return c.json({ quizzes: newQuizzes.map(q => q.value).filter(Boolean) });
     }
 
+    const url = new URL(c.req.url);
+    const subjectFilter = url.searchParams.get('subject');
+    const unitFilter = url.searchParams.get('unit');
+    const difficultyParam = url.searchParams.get('difficulty');
+    const countParam = url.searchParams.get('count');
+
     // Filter out any null/undefined values and ensure all quizzes have required properties
-    const validQuizzes = quizzes
+    let validQuizzes = quizzes
       .map(q => q.value)
       .filter(quiz => quiz && quiz.id && quiz.question && quiz.answer);
+
+    if (subjectFilter && subjectFilter !== 'all') {
+      validQuizzes = validQuizzes.filter(quiz => quiz.subject === subjectFilter);
+    }
+
+    if (unitFilter && unitFilter !== 'all') {
+      validQuizzes = validQuizzes.filter(quiz => quiz.unit === unitFilter);
+    }
+
+    if (difficultyParam && difficultyParam !== 'mix') {
+      const difficulty = parseInt(difficultyParam, 10);
+      if (!Number.isNaN(difficulty)) {
+        validQuizzes = validQuizzes.filter(quiz => quiz.difficulty === difficulty);
+      }
+    }
+
+    if (countParam) {
+      const count = parseInt(countParam, 10);
+      if (!Number.isNaN(count) && count > 0 && validQuizzes.length > count) {
+        // Shuffle array shallowly before slicing to avoid always taking the same quizzes
+        validQuizzes = [...validQuizzes].sort(() => Math.random() - 0.5).slice(0, count);
+      }
+    }
 
     console.log('Valid quizzes to return:', validQuizzes);
     return c.json({ quizzes: validQuizzes });

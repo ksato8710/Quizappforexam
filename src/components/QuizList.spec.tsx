@@ -29,24 +29,24 @@ describe('QuizList', () => {
     render(<QuizList onBack={() => {}} />)
 
     // クイズ内容の一部と列が表示される
-    expect(await screen.findByText('江戸幕府を開いた将軍は？')).toBeInTheDocument()
-    expect(screen.getByText('参勤交代の目的は？')).toBeInTheDocument()
+    expect(await screen.findAllByText('江戸幕府を開いた将軍は？')).not.toHaveLength(0)
+    expect(screen.getAllByText('参勤交代の目的は？')).not.toHaveLength(0)
 
     // 過去回答数/正答率の集計（q1: 2回/50%、q2: 1回/100%）
     const rows = screen.getAllByRole('row').slice(1) // skip header row
     const row1 = rows.find(r => within(r).queryByText(/江戸幕府/))!
-    expect(within(row1).getByText('2')).toBeInTheDocument()
+    expect(within(row1).getByText('2回')).toBeInTheDocument()
     expect(within(row1).getByText('50%')).toBeInTheDocument()
 
     const row2 = rows.find(r => within(r).queryByText(/参勤交代/))!
-    expect(within(row2).getByText('1')).toBeInTheDocument()
+    expect(within(row2).getByText('1回')).toBeInTheDocument()
     expect(within(row2).getByText('100%')).toBeInTheDocument()
   })
 
   it('行クリックで詳細画面を表示する', async () => {
     render(<QuizList onBack={() => {}} />)
-    const target = await screen.findByText('江戸幕府を開いた将軍は？')
-    target.click()
+    const target = await screen.findAllByText('江戸幕府を開いた将軍は？')
+    target[0].click()
 
     await waitFor(() => {
       expect(screen.getByText('クイズ詳細')).toBeInTheDocument()

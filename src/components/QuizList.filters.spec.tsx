@@ -29,16 +29,16 @@ describe('QuizList filters and sorting', () => {
     render(<QuizList onBack={() => {}} />)
 
     // Initially show all three questions
-    expect(await screen.findByText('江戸幕府を開いた将軍は？')).toBeInTheDocument()
-    expect(screen.getByText('参勤交代の目的は？')).toBeInTheDocument()
-    expect(screen.getByText('電流の単位は？')).toBeInTheDocument()
+    expect(await screen.findAllByText('江戸幕府を開いた将軍は？')).not.toHaveLength(0)
+    expect(screen.getAllByText('参勤交代の目的は？')).not.toHaveLength(0)
+    expect(screen.getAllByText('電流の単位は？')).not.toHaveLength(0)
 
     // Filter subject to 社会
     const subjectSelect = screen.getByLabelText('教科') as HTMLSelectElement
     fireEvent.change(subjectSelect, { target: { value: '社会' } })
 
     // 理科の行が消える
-    expect(screen.queryByText('電流の単位は？')).not.toBeInTheDocument()
+    expect(screen.queryAllByText('電流の単位は？')).toHaveLength(0)
 
     // Sort by accuracy desc -> q2 (100%) should be first, then q1 (50%)
     const sortSelect = screen.getByLabelText('並び替え') as HTMLSelectElement

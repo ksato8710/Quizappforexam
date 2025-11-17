@@ -7,6 +7,7 @@ import { Button } from './components/ui/button';
 import { BookOpen, RotateCcw, LogOut, BarChart3, Settings } from 'lucide-react';
 import { apiClient, Quiz } from './utils/api-client';
 import { getSupabaseClient } from './utils/supabase/client';
+import { limitQuizzesByCount } from './utils/quiz-helpers';
 
 export default function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -82,8 +83,11 @@ export default function App() {
         return true;
       });
 
+      const limitedQuizzes = limitQuizzesByCount(validQuizzes, config?.count);
+
       console.log('Valid quizzes after filter:', validQuizzes);
-      setQuizzes(validQuizzes);
+      console.log('Quizzes after applying count limit:', limitedQuizzes.length);
+      setQuizzes(limitedQuizzes);
     } catch (error) {
       console.error('Failed to load quizzes:', error);
     }
@@ -216,7 +220,15 @@ export default function App() {
     }} />;
   }
   if (showQuizList) {
-    return <QuizList onBack={() => { setShowQuizList(false); setShowStats(true); }} />;
+    return (
+      <QuizList
+        onBack={() => { setShowQuizList(false); setShowStats(true); }}
+        onOpenSettings={() => {
+          setShowQuizList(false);
+          setShowSettings(true);
+        }}
+      />
+    );
   }
 
   if (showStats) {

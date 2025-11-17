@@ -21,7 +21,7 @@ function getIsCorrect(h: any): boolean | undefined {
   return typeof v === 'boolean' ? v : undefined
 }
 
-export function QuizList({ onBack }: { onBack: () => void }) {
+export function QuizList({ onBack, onOpenSettings }: { onBack: () => void; onOpenSettings?: () => void }) {
   const [quizzes, setQuizzes] = useState<Quiz[]>([])
   const [history, setHistory] = useState<HistoryItem[]>([])
   const [selected, setSelected] = useState<Quiz | null>(null)
@@ -223,9 +223,16 @@ export function QuizList({ onBack }: { onBack: () => void }) {
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 py-8 px-4">
       <div className="max-w-5xl mx-auto space-y-6">
-        <div className="flex justify-between items-center">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <h1 className="text-indigo-900">クイズ一覧</h1>
-          <Button variant="outline" onClick={onBack}>統計へ戻る</Button>
+          <div className="flex gap-2 flex-wrap">
+            {onOpenSettings && (
+              <Button variant="outline" onClick={onOpenSettings}>
+                クイズ設定へ
+              </Button>
+            )}
+            <Button variant="outline" onClick={onBack}>統計へ戻る</Button>
+          </div>
         </div>
         <Card className="bg-white shadow-md p-6">
           <h2 className="text-gray-900 font-semibold mb-4 flex items-center gap-2">
