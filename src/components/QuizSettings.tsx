@@ -3,6 +3,7 @@ import { Card } from './ui/card';
 import { Button } from './ui/button';
 import { Label } from './ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
+import { RadioGroup, RadioGroupItem } from './ui/radio-group';
 import { Play, BarChart3, LogOut } from 'lucide-react';
 import { apiClient } from '../utils/api-client';
 import { SOUND_EFFECT_PRESETS, DEFAULT_SOUND_EFFECT_ID } from '../constants/sound-effects';
@@ -110,102 +111,74 @@ export function QuizSettings({ onStart, onShowStats, onLogout }: QuizSettingsPro
         <Card className="bg-white shadow-xl rounded-2xl p-8">
           {/* Subject Selection */}
           <div className="mb-8">
-            <Label className="text-gray-900 mb-3 block">教科</Label>
-            <Select value={selectedSubject} onValueChange={setSelectedSubject}>
-              <SelectTrigger className="w-full h-12 rounded-lg border-2 border-gray-200 px-3 text-left text-gray-800 font-medium focus-visible:ring-2 focus-visible:ring-indigo-200 focus-visible:border-indigo-500">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent
-                position="popper"
-                sideOffset={4}
-                className="w-[var(--radix-select-trigger-width)] min-w-[var(--radix-select-trigger-width)] rounded-xl border border-gray-100 bg-white shadow-xl"
-              >
-                {subjects.map((subject) => (
-                  <SelectItem
-                    key={subject.value}
-                    value={subject.value}
-                    className="text-gray-800 text-sm font-medium px-4 py-2 focus:bg-indigo-50 data-[highlighted]:bg-indigo-50 data-[state=checked]:bg-indigo-100 data-[state=checked]:text-indigo-700"
+            <Label className="text-gray-900 mb-3 block font-medium">教科</Label>
+            <RadioGroup value={selectedSubject} onValueChange={setSelectedSubject}>
+              {subjects.map((subject) => (
+                <div key={subject.value} className="flex items-center space-x-3">
+                  <RadioGroupItem value={subject.value} id={`subject-${subject.value}`} />
+                  <Label
+                    htmlFor={`subject-${subject.value}`}
+                    className="text-gray-800 font-normal cursor-pointer"
                   >
                     {subject.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+                  </Label>
+                </div>
+              ))}
+            </RadioGroup>
           </div>
 
           {/* Unit Selection */}
           <div className="mb-8">
-            <Label className="text-gray-900 mb-3 block">単元</Label>
-            <Select value={selectedUnit} onValueChange={setSelectedUnit}>
-              <SelectTrigger className="w-full h-12 rounded-lg border-2 border-gray-200 px-3 text-left text-gray-800 font-medium focus-visible:ring-2 focus-visible:ring-indigo-200 focus-visible:border-indigo-500">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent
-                position="popper"
-                sideOffset={4}
-                className="w-[var(--radix-select-trigger-width)] min-w-[var(--radix-select-trigger-width)] rounded-xl border border-gray-100 bg-white shadow-xl"
-              >
-                {units.map((unit) => (
-                  <SelectItem
-                    key={unit.value}
-                    value={unit.value}
-                    className="text-gray-800 text-sm font-medium px-4 py-2 focus:bg-indigo-50 data-[highlighted]:bg-indigo-50 data-[state=checked]:bg-indigo-100 data-[state=checked]:text-indigo-700"
+            <Label className="text-gray-900 mb-3 block font-medium">単元</Label>
+            <RadioGroup value={selectedUnit} onValueChange={setSelectedUnit}>
+              {units.map((unit) => (
+                <div key={unit.value} className="flex items-center space-x-3">
+                  <RadioGroupItem value={unit.value} id={`unit-${unit.value}`} />
+                  <Label
+                    htmlFor={`unit-${unit.value}`}
+                    className="text-gray-800 font-normal cursor-pointer"
                   >
                     {unit.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+                  </Label>
+                </div>
+              ))}
+            </RadioGroup>
           </div>
 
           {/* Difficulty Selection */}
           <div className="mb-8">
-            <Label className="text-gray-900 mb-3 block">難易度</Label>
-            <Select value={selectedDifficulty} onValueChange={setSelectedDifficulty}>
-              <SelectTrigger className="w-full h-12 rounded-lg border-2 border-gray-200 px-3 text-left text-gray-800 font-medium focus-visible:ring-2 focus-visible:ring-indigo-200 focus-visible:border-indigo-500">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent
-                position="popper"
-                sideOffset={4}
-                className="w-[var(--radix-select-trigger-width)] min-w-[var(--radix-select-trigger-width)] rounded-xl border border-gray-100 bg-white shadow-xl"
-              >
-                {difficultyOptions.map((option) => (
-                  <SelectItem
-                    key={option.value}
-                    value={option.value}
-                    className="text-gray-800 text-sm font-medium px-4 py-2 focus:bg-indigo-50 data-[highlighted]:bg-indigo-50 data-[state=checked]:bg-indigo-100 data-[state=checked]:text-indigo-700"
+            <Label className="text-gray-900 mb-3 block font-medium">難易度</Label>
+            <RadioGroup value={selectedDifficulty} onValueChange={setSelectedDifficulty}>
+              {difficultyOptions.map((option) => (
+                <div key={option.value} className="flex items-center space-x-3">
+                  <RadioGroupItem value={option.value} id={`difficulty-${option.value}`} />
+                  <Label
+                    htmlFor={`difficulty-${option.value}`}
+                    className="text-gray-800 font-normal cursor-pointer"
                   >
                     {option.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+                  </Label>
+                </div>
+              ))}
+            </RadioGroup>
           </div>
 
           {/* Question Count Selection */}
           <div className="mb-8">
-            <Label className="text-gray-900 mb-3 block">問題数</Label>
-            <Select value={selectedCount} onValueChange={setSelectedCount}>
-              <SelectTrigger className="w-full h-12 rounded-lg border-2 border-gray-200 px-3 text-left text-gray-800 font-medium focus-visible:ring-2 focus-visible:ring-indigo-200 focus-visible:border-indigo-500">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent
-                position="popper"
-                sideOffset={4}
-                className="w-[var(--radix-select-trigger-width)] min-w-[var(--radix-select-trigger-width)] rounded-xl border border-gray-100 bg-white shadow-xl"
-              >
-                {countOptions.map((option) => (
-                  <SelectItem
-                    key={option.value}
-                    value={option.value}
-                    className="text-gray-800 text-sm font-medium px-4 py-2 focus:bg-indigo-50 data-[highlighted]:bg-indigo-50 data-[state=checked]:bg-indigo-100 data-[state=checked]:text-indigo-700"
+            <Label className="text-gray-900 mb-3 block font-medium">問題数</Label>
+            <RadioGroup value={selectedCount} onValueChange={setSelectedCount}>
+              {countOptions.map((option) => (
+                <div key={option.value} className="flex items-center space-x-3">
+                  <RadioGroupItem value={option.value} id={`count-${option.value}`} />
+                  <Label
+                    htmlFor={`count-${option.value}`}
+                    className="text-gray-800 font-normal cursor-pointer"
                   >
                     {option.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+                  </Label>
+                </div>
+              ))}
+            </RadioGroup>
           </div>
 
           {/* Sound Effect Selection */}
