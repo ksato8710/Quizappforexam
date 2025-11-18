@@ -5,12 +5,15 @@ import { Label } from './ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { Play, BarChart3 } from 'lucide-react';
 import { apiClient } from '../utils/api-client';
+import { SOUND_EFFECT_PRESETS, DEFAULT_SOUND_EFFECT_ID } from '../constants/sound-effects';
+import { playSoundEffect } from '../utils/sound-effects';
 
 export interface QuizConfig {
   subject?: string;
   unit?: string;
   difficulty: number | null; // null means mix
   count: number;
+  soundEffect?: string;
 }
 
 interface QuizSettingsProps {
@@ -23,6 +26,7 @@ export type QuizSelectionState = {
   unit: string;
   difficulty: string;
   count: string;
+  soundEffect: string;
 };
 
 export function buildQuizConfig(state: QuizSelectionState): QuizConfig {
@@ -36,6 +40,7 @@ export function buildQuizConfig(state: QuizSelectionState): QuizConfig {
     unit,
     difficulty,
     count,
+    soundEffect: state.soundEffect,
   };
 }
 
@@ -44,6 +49,7 @@ export function QuizSettings({ onStart, onShowStats }: QuizSettingsProps) {
   const [selectedUnit, setSelectedUnit] = useState<string>('all');
   const [selectedDifficulty, setSelectedDifficulty] = useState<string>('mix');
   const [selectedCount, setSelectedCount] = useState<string>('10');
+  const [selectedSoundEffect, setSelectedSoundEffect] = useState<string>(DEFAULT_SOUND_EFFECT_ID);
   const [loading, setLoading] = useState(false);
 
   const subjects = [
@@ -65,6 +71,7 @@ export function QuizSettings({ onStart, onShowStats }: QuizSettingsProps) {
         unit: selectedUnit,
         difficulty: selectedDifficulty,
         count: selectedCount,
+        soundEffect: selectedSoundEffect,
       }),
     );
   };
@@ -194,6 +201,32 @@ export function QuizSettings({ onStart, onShowStats }: QuizSettingsProps) {
                     className="text-gray-800 text-sm font-medium px-4 py-2 focus:bg-indigo-50 data-[highlighted]:bg-indigo-50 data-[state=checked]:bg-indigo-100 data-[state=checked]:text-indigo-700"
                   >
                     {option.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Sound Effect Selection */}
+          <div className="mb-8">
+            <Label className="text-gray-900 mb-3 block">正解音</Label>
+            <Select value={selectedSoundEffect} onValueChange={setSelectedSoundEffect}>
+              <SelectTrigger className="w-full h-12 rounded-lg border-2 border-gray-200 px-3 text-left text-gray-800 font-medium focus-visible:ring-2 focus-visible:ring-indigo-200 focus-visible:border-indigo-500">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent
+                position="popper"
+                sideOffset={4}
+                className="w-[var(--radix-select-trigger-width)] min-w-[var(--radix-select-trigger-width)] rounded-xl border border-gray-100 bg-white shadow-xl max-h-[300px] overflow-y-auto"
+              >
+                {SOUND_EFFECT_PRESETS.map((preset) => (
+                  <SelectItem
+                    key={preset.id}
+                    value={preset.id}
+                    className="text-gray-800 text-sm font-medium px-4 py-2 focus:bg-indigo-50 data-[highlighted]:bg-indigo-50 data-[state=checked]:bg-indigo-100 data-[state=checked]:text-indigo-700"
+                    onClick={() => playSoundEffect(preset.id)}
+                  >
+                    {preset.label}
                   </SelectItem>
                 ))}
               </SelectContent>
