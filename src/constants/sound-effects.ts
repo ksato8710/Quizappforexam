@@ -120,6 +120,32 @@ export const SOUND_EFFECT_PRESETS: SoundEffectPreset[] = [
       { frequency: 784, offset: 0.28, duration: 0.22, waveform: 'sine', peakGain: 0.28 },
     ],
   },
+  // ⭐ Duolingo風効果音シリーズ (専用関数で実装)
+  {
+    id: 'duolingo-base',
+    label: 'Duolingoベース',
+    tones: [], // 専用関数で実装
+  },
+  {
+    id: 'duolingo-variant1',
+    label: 'Duolingo高音',
+    tones: [], // 専用関数で実装
+  },
+  {
+    id: 'duolingo-variant2',
+    label: 'Duolingoレベルアップ',
+    tones: [], // 専用関数で実装
+  },
+  {
+    id: 'duolingo-variant3',
+    label: 'Duolingoシンプル',
+    tones: [], // 専用関数で実装
+  },
+  {
+    id: 'duolingo-variant4',
+    label: 'Duolingoスマイル',
+    tones: [], // 専用関数で実装
+  },
 ];
 
 export const DEFAULT_SOUND_EFFECT_ID = SOUND_EFFECT_PRESETS[0].id;
