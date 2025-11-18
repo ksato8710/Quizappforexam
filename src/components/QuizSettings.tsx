@@ -249,31 +249,32 @@ export function QuizSettings({ onStart, onShowStats, onLogout }: QuizSettingsPro
             クイズを始める
           </Button>
 
-          {/* Stats Button */}
-          {onShowStats && (
-            <Button
-              onClick={onShowStats}
-              variant="outline"
-              className="w-full mt-3"
-              size="lg"
-            >
-              <BarChart3 className="w-5 h-5 mr-2" />
-              統計情報を見る
-            </Button>
-          )}
+          {/* Stats and Logout Buttons */}
+          <div className="flex gap-3 mt-3">
+            {onShowStats && (
+              <Button
+                onClick={onShowStats}
+                variant="outline"
+                className="flex-1"
+                size="lg"
+              >
+                <BarChart3 className="w-5 h-5 mr-2" />
+                統計情報を見る
+              </Button>
+            )}
 
-          {/* Logout Button */}
-          {onLogout && (
-            <Button
-              onClick={onLogout}
-              variant="outline"
-              className="w-full mt-3 text-red-600 border-red-200 hover:bg-red-50 hover:text-red-700"
-              size="lg"
-            >
-              <LogOut className="w-5 h-5 mr-2" />
-              ログアウト
-            </Button>
-          )}
+            {onLogout && (
+              <Button
+                onClick={onLogout}
+                variant="outline"
+                className="flex-1 text-red-600 border-red-200 hover:bg-red-50 hover:text-red-700"
+                size="lg"
+              >
+                <LogOut className="w-5 h-5 mr-2" />
+                ログアウト
+              </Button>
+            )}
+          </div>
         </Card>
       </div>
     </div>
