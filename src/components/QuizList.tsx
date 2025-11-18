@@ -331,18 +331,18 @@ export function QuizList({ onBack, onOpenSettings }: { onBack: () => void; onOpe
           </div>
         </Card>
 
-        {/* Desktop: Table View */}
-        <Card className="hidden md:block p-0 overflow-hidden shadow-md transition-opacity duration-300 animate-in fade-in">
+        {/* Table View */}
+        <Card className="p-0 overflow-hidden shadow-md transition-opacity duration-300 animate-in fade-in">
           <div className="overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow className="bg-gradient-to-r from-blue-50 to-indigo-50 hover:from-blue-50 hover:to-indigo-50">
-                  <TableHead className="w-[30%] min-w-[200px] font-semibold text-indigo-900 whitespace-normal">クイズ内容</TableHead>
-                  <TableHead className="w-[12%] min-w-[100px] font-semibold text-indigo-900">難易度</TableHead>
-                  <TableHead className="w-[10%] min-w-[80px] font-semibold text-indigo-900 whitespace-normal">教科</TableHead>
-                  <TableHead className="w-[20%] min-w-[150px] font-semibold text-indigo-900 whitespace-normal">単元</TableHead>
-                  <TableHead className="w-[14%] min-w-[100px] font-semibold text-indigo-900 text-center whitespace-normal">過去の回答数</TableHead>
-                  <TableHead className="w-[14%] min-w-[100px] font-semibold text-indigo-900 text-center whitespace-normal">過去の正答率</TableHead>
+                  <TableHead className="w-[23%] min-w-[170px] h-12 px-4 font-semibold text-indigo-900 whitespace-normal">クイズ内容</TableHead>
+                  <TableHead className="w-[12%] min-w-[110px] h-12 px-4 font-semibold text-indigo-900">難易度</TableHead>
+                  <TableHead className="w-[15%] min-w-[110px] h-12 px-4 font-semibold text-indigo-900 whitespace-normal">教科</TableHead>
+                  <TableHead className="w-[32%] min-w-[240px] h-12 px-4 font-semibold text-indigo-900 whitespace-normal">単元</TableHead>
+                  <TableHead className="w-[9%] min-w-[80px] h-12 px-4 font-semibold text-indigo-900 text-center whitespace-normal">過去の回答数</TableHead>
+                  <TableHead className="w-[9%] min-w-[80px] h-12 px-4 font-semibold text-indigo-900 text-center whitespace-normal">過去の正答率</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -354,24 +354,22 @@ export function QuizList({ onBack, onOpenSettings }: { onBack: () => void; onOpe
                   </TableRow>
                 ) : (
                   sorted.map(({ q, s, accuracy }) => {
-                    // 難易度に応じた色
+                    // 難易度に応じた星アイコンとスタイル
                     const getDifficultyBadge = (diff: number | undefined) => {
                       if (diff == null) return <span className="text-gray-400">-</span>;
-                      const colors = {
-                        2: 'bg-green-100 text-green-800 border-green-200',
-                        3: 'bg-blue-100 text-blue-800 border-blue-200',
-                        4: 'bg-yellow-100 text-yellow-800 border-yellow-200',
-                        5: 'bg-red-100 text-red-800 border-red-200',
+                      const configs = {
+                        2: { stars: '⭐', label: 'やさしい', bg: 'bg-green-100', text: 'text-green-700' },
+                        3: { stars: '⭐⭐', label: 'ふつう', bg: 'bg-blue-100', text: 'text-blue-700' },
+                        4: { stars: '⭐⭐⭐', label: 'むずかしい', bg: 'bg-yellow-100', text: 'text-yellow-700' },
+                        5: { stars: '⭐⭐⭐⭐', label: 'とてもむずかしい', bg: 'bg-red-100', text: 'text-red-700' },
                       };
-                      const labels = {
-                        2: 'やさしい',
-                        3: 'ふつう',
-                        4: 'むずかしい',
-                        5: 'とてもむずかしい',
-                      };
-                      const color = colors[diff as keyof typeof colors] || 'bg-gray-100 text-gray-800 border-gray-200';
-                      const label = labels[diff as keyof typeof labels] || `Lv.${diff}`;
-                      return <Badge className={`${color} border font-medium`}>{label}</Badge>;
+                      const config = configs[diff as keyof typeof configs] || { stars: '⭐', label: `Lv.${diff}`, bg: 'bg-gray-100', text: 'text-gray-700' };
+                      return (
+                        <div className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md ${config.bg} ${config.text} font-medium text-sm`}>
+                          <span>{config.stars}</span>
+                          <span>{config.label}</span>
+                        </div>
+                      );
                     };
 
                     // 正答率に応じた色
@@ -388,22 +386,22 @@ export function QuizList({ onBack, onOpenSettings }: { onBack: () => void; onOpe
                         className="cursor-pointer hover:bg-indigo-50 transition-colors border-b border-gray-100"
                         onClick={() => setSelected(q)}
                       >
-                        <TableCell className="w-[30%] min-w-[200px] whitespace-normal">
+                        <TableCell className="w-[23%] min-w-[170px] px-4 py-4 whitespace-normal">
                           <div className="text-gray-900 leading-relaxed break-words">{q.question}</div>
                         </TableCell>
-                        <TableCell className="w-[12%] min-w-[100px] whitespace-nowrap">
+                        <TableCell className="w-[12%] min-w-[110px] px-4 py-4">
                           {getDifficultyBadge(q.difficulty)}
                         </TableCell>
-                        <TableCell className="w-[10%] min-w-[80px] whitespace-normal">
+                        <TableCell className="w-[15%] min-w-[110px] px-4 py-4 whitespace-normal">
                           <span className="text-gray-700 break-words">{q.subject ?? <span className="text-gray-400">-</span>}</span>
                         </TableCell>
-                        <TableCell className="w-[20%] min-w-[150px] whitespace-normal">
-                          <span className="text-gray-700 text-sm break-words">{q.unit ?? <span className="text-gray-400">-</span>}</span>
+                        <TableCell className="w-[32%] min-w-[240px] px-4 py-4 whitespace-normal">
+                          <span className="text-gray-700 break-words">{q.unit ?? <span className="text-gray-400">-</span>}</span>
                         </TableCell>
-                        <TableCell className="w-[14%] min-w-[100px] text-center whitespace-nowrap">
+                        <TableCell className="w-[9%] min-w-[80px] px-4 py-4 text-center whitespace-nowrap">
                           <span className="text-gray-700 font-medium">{s?.answers ?? 0}回</span>
                         </TableCell>
-                        <TableCell className="w-[14%] min-w-[100px] text-center whitespace-nowrap">
+                        <TableCell className="w-[9%] min-w-[80px] px-4 py-4 text-center whitespace-nowrap">
                           <span className={getAccuracyColor(accuracy, s?.answers ?? 0)}>
                             {s?.answers ? `${accuracy}%` : '-'}
                           </span>
@@ -416,93 +414,6 @@ export function QuizList({ onBack, onOpenSettings }: { onBack: () => void; onOpe
             </Table>
           </div>
         </Card>
-
-        {/* Mobile: Card List View */}
-        <div className="md:hidden space-y-3 animate-in fade-in duration-300">
-          {sorted.length === 0 ? (
-            <Card className="p-8 text-center text-gray-500 shadow-md">
-              該当するクイズが見つかりませんでした
-            </Card>
-          ) : (
-            sorted.map(({ q, s, accuracy }) => {
-              // 難易度に応じた色とラベル
-              const getDifficultyBadge = (diff: number | undefined) => {
-                if (diff == null) return <span className="text-gray-400">-</span>;
-                const colors = {
-                  2: 'bg-green-100 text-green-800 border-green-200',
-                  3: 'bg-blue-100 text-blue-800 border-blue-200',
-                  4: 'bg-yellow-100 text-yellow-800 border-yellow-200',
-                  5: 'bg-red-100 text-red-800 border-red-200',
-                };
-                const labels = {
-                  2: 'やさしい',
-                  3: 'ふつう',
-                  4: 'むずかしい',
-                  5: 'とてもむずかしい',
-                };
-                const color = colors[diff as keyof typeof colors] || 'bg-gray-100 text-gray-800 border-gray-200';
-                const label = labels[diff as keyof typeof labels] || `Lv.${diff}`;
-                return <Badge className={`${color} border font-medium`}>{label}</Badge>;
-              };
-
-              // 正答率に応じた色
-              const getAccuracyColor = (acc: number, answers: number) => {
-                if (answers === 0) return 'text-gray-400';
-                if (acc >= 80) return 'text-green-600 font-semibold';
-                if (acc >= 50) return 'text-yellow-600 font-semibold';
-                return 'text-red-600 font-semibold';
-              };
-
-              return (
-                <Card
-                  key={q.id}
-                  className="p-4 cursor-pointer hover:shadow-lg hover:border-indigo-300 transition-all active:scale-[0.98] shadow-md border-2 border-gray-100"
-                  onClick={() => setSelected(q)}
-                >
-                  <div className="space-y-3">
-                    {/* クイズ内容 */}
-                    <div>
-                      <p className="text-xs text-indigo-600 font-semibold mb-1">クイズ内容</p>
-                      <p className="text-gray-900 line-clamp-2 leading-relaxed">{q.question}</p>
-                    </div>
-
-                    {/* 2列グリッド: 難易度と教科 */}
-                    <div className="grid grid-cols-2 gap-3">
-                      <div>
-                        <p className="text-xs text-gray-600 mb-1">難易度</p>
-                        {getDifficultyBadge(q.difficulty)}
-                      </div>
-                      <div>
-                        <p className="text-xs text-gray-600 mb-1">教科</p>
-                        <p className="text-gray-700 text-sm font-medium">{q.subject ?? <span className="text-gray-400">-</span>}</p>
-                      </div>
-                    </div>
-
-                    {/* 単元 */}
-                    <div>
-                      <p className="text-xs text-gray-600 mb-1">単元</p>
-                      <p className="text-gray-700 text-sm line-clamp-1">{q.unit ?? <span className="text-gray-400">-</span>}</p>
-                    </div>
-
-                    {/* 2列グリッド: 回答数と正答率 */}
-                    <div className="grid grid-cols-2 gap-3 pt-2 border-t border-gray-200">
-                      <div>
-                        <p className="text-xs text-gray-600 mb-1">過去の回答数</p>
-                        <p className="text-gray-700 font-medium">{s?.answers ?? 0}回</p>
-                      </div>
-                      <div>
-                        <p className="text-xs text-gray-600 mb-1">過去の正答率</p>
-                        <p className={getAccuracyColor(accuracy, s?.answers ?? 0)}>
-                          {s?.answers ? `${accuracy}%` : '-'}
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                </Card>
-              );
-            })
-          )}
-        </div>
       </div>
     </div>
   )
