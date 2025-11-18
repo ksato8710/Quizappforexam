@@ -1,9 +1,8 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Card } from './ui/card';
 import { Button } from './ui/button';
 import { Label } from './ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
-import { RadioGroup, RadioGroupItem } from './ui/radio-group';
 import { Play, BarChart3, LogOut } from 'lucide-react';
 import { apiClient } from '../utils/api-client';
 import { SOUND_EFFECT_PRESETS, DEFAULT_SOUND_EFFECT_ID } from '../constants/sound-effects';
@@ -26,7 +25,6 @@ interface QuizSettingsProps {
 export type QuizSelectionState = {
   subject: string;
   unit: string;
-  difficulty: string;
   count: string;
   soundEffect: string;
 };
@@ -34,7 +32,7 @@ export type QuizSelectionState = {
 export function buildQuizConfig(state: QuizSelectionState): QuizConfig {
   const subject = state.subject === 'all' ? undefined : state.subject;
   const unit = state.unit === 'all' ? undefined : state.unit;
-  const difficulty = state.difficulty === 'mix' ? null : parseInt(state.difficulty, 10);
+  const difficulty = null;
   const count = parseInt(state.count, 10);
 
   return {
@@ -49,10 +47,10 @@ export function buildQuizConfig(state: QuizSelectionState): QuizConfig {
 export function QuizSettings({ onStart, onShowStats, onLogout }: QuizSettingsProps) {
   const [selectedSubject, setSelectedSubject] = useState<string>('all');
   const [selectedUnit, setSelectedUnit] = useState<string>('all');
-  const [selectedDifficulty, setSelectedDifficulty] = useState<string>('mix');
   const [selectedCount, setSelectedCount] = useState<string>('10');
   const [selectedSoundEffect, setSelectedSoundEffect] = useState<string>(DEFAULT_SOUND_EFFECT_ID);
   const [loading, setLoading] = useState(false);
+
 
   const subjects = [
     { value: 'all', label: '全教科' },
@@ -71,20 +69,11 @@ export function QuizSettings({ onStart, onShowStats, onLogout }: QuizSettingsPro
       buildQuizConfig({
         subject: selectedSubject,
         unit: selectedUnit,
-        difficulty: selectedDifficulty,
         count: selectedCount,
         soundEffect: selectedSoundEffect,
       }),
     );
   };
-
-  const difficultyOptions = [
-    { value: 'mix', label: 'ミックス' },
-    { value: '2', label: 'やさしい' },
-    { value: '3', label: 'ふつう' },
-    { value: '4', label: 'むずかしい' },
-    { value: '5', label: 'とてもむずかしい' },
-  ];
 
   const countOptions = [
     { value: '5', label: '5問' },
@@ -112,73 +101,85 @@ export function QuizSettings({ onStart, onShowStats, onLogout }: QuizSettingsPro
           {/* Subject Selection */}
           <div className="mb-8">
             <Label className="text-gray-900 mb-3 block font-medium">教科</Label>
-            <RadioGroup value={selectedSubject} onValueChange={setSelectedSubject}>
-              {subjects.map((subject) => (
-                <div key={subject.value} className="flex items-center space-x-3">
-                  <RadioGroupItem value={subject.value} id={`subject-${subject.value}`} />
-                  <Label
-                    htmlFor={`subject-${subject.value}`}
-                    className="text-gray-800 font-normal cursor-pointer"
+            <div className="space-y-4">
+              {subjects.map((subject, index) => {
+                const subjectId = `subject-option-${index}`;
+                return (
+                  <label
+                    key={subject.value}
+                    htmlFor={subjectId}
+                    className="flex items-center gap-4 cursor-pointer text-gray-800 px-3 py-2 rounded-lg border border-gray-200 hover:border-indigo-400"
                   >
-                    {subject.label}
-                  </Label>
-                </div>
-              ))}
-            </RadioGroup>
+                    <input
+                      type="radio"
+                      id={subjectId}
+                      name="subject"
+                      value={subject.value}
+                      checked={selectedSubject === subject.value}
+                      onChange={() => setSelectedSubject(subject.value)}
+                      className="h-4 w-4 border-gray-400 text-indigo-600 focus:ring-indigo-500"
+                    />
+                    <span>{subject.label}</span>
+                  </label>
+                );
+              })}
+            </div>
           </div>
 
           {/* Unit Selection */}
           <div className="mb-8">
             <Label className="text-gray-900 mb-3 block font-medium">単元</Label>
-            <RadioGroup value={selectedUnit} onValueChange={setSelectedUnit}>
-              {units.map((unit) => (
-                <div key={unit.value} className="flex items-center space-x-3">
-                  <RadioGroupItem value={unit.value} id={`unit-${unit.value}`} />
-                  <Label
-                    htmlFor={`unit-${unit.value}`}
-                    className="text-gray-800 font-normal cursor-pointer"
+            <div className="space-y-4">
+              {units.map((unit, index) => {
+                const unitId = `unit-option-${index}`;
+                return (
+                  <label
+                    key={unit.value}
+                    htmlFor={unitId}
+                    className="flex items-center gap-4 cursor-pointer text-gray-800 px-3 py-2 rounded-lg border border-gray-200 hover:border-indigo-400"
                   >
-                    {unit.label}
-                  </Label>
-                </div>
-              ))}
-            </RadioGroup>
-          </div>
-
-          {/* Difficulty Selection */}
-          <div className="mb-8">
-            <Label className="text-gray-900 mb-3 block font-medium">難易度</Label>
-            <RadioGroup value={selectedDifficulty} onValueChange={setSelectedDifficulty}>
-              {difficultyOptions.map((option) => (
-                <div key={option.value} className="flex items-center space-x-3">
-                  <RadioGroupItem value={option.value} id={`difficulty-${option.value}`} />
-                  <Label
-                    htmlFor={`difficulty-${option.value}`}
-                    className="text-gray-800 font-normal cursor-pointer"
-                  >
-                    {option.label}
-                  </Label>
-                </div>
-              ))}
-            </RadioGroup>
+                    <input
+                      type="radio"
+                      id={unitId}
+                      name="unit"
+                      value={unit.value}
+                      checked={selectedUnit === unit.value}
+                      onChange={() => setSelectedUnit(unit.value)}
+                      className="h-4 w-4 border-gray-400 text-indigo-600 focus:ring-indigo-500"
+                    />
+                    <span>{unit.label}</span>
+                  </label>
+                );
+              })}
+            </div>
           </div>
 
           {/* Question Count Selection */}
           <div className="mb-8">
             <Label className="text-gray-900 mb-3 block font-medium">問題数</Label>
-            <RadioGroup value={selectedCount} onValueChange={setSelectedCount}>
-              {countOptions.map((option) => (
-                <div key={option.value} className="flex items-center space-x-3">
-                  <RadioGroupItem value={option.value} id={`count-${option.value}`} />
-                  <Label
-                    htmlFor={`count-${option.value}`}
-                    className="text-gray-800 font-normal cursor-pointer"
+            <div className="space-y-4">
+              {countOptions.map((option, index) => {
+                const countId = `count-option-${index}`;
+                return (
+                  <label
+                    key={option.value}
+                    htmlFor={countId}
+                    className="flex items-center gap-4 cursor-pointer text-gray-800 px-3 py-2 rounded-lg border border-gray-200 hover:border-indigo-400"
                   >
-                    {option.label}
-                  </Label>
-                </div>
-              ))}
-            </RadioGroup>
+                    <input
+                      type="radio"
+                      id={countId}
+                      name="count"
+                      value={option.value}
+                      checked={selectedCount === option.value}
+                      onChange={() => setSelectedCount(option.value)}
+                      className="h-4 w-4 border-gray-400 text-indigo-600 focus:ring-indigo-500"
+                    />
+                    <span>{option.label}</span>
+                  </label>
+                );
+              })}
+            </div>
           </div>
 
           {/* Sound Effect Selection */}
