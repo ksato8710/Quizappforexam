@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react';
 import { Card } from './ui/card';
 import { Button } from './ui/button';
 import { Label } from './ui/label';
-import { RadioGroup, RadioGroupItem } from './ui/radio-group';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { Play, BarChart3 } from 'lucide-react';
 import { apiClient } from '../utils/api-client';
@@ -17,6 +16,27 @@ export interface QuizConfig {
 interface QuizSettingsProps {
   onStart: (config: QuizConfig) => void;
   onShowStats?: () => void;
+}
+
+export type QuizSelectionState = {
+  subject: string;
+  unit: string;
+  difficulty: string;
+  count: string;
+};
+
+export function buildQuizConfig(state: QuizSelectionState): QuizConfig {
+  const subject = state.subject === 'all' ? undefined : state.subject;
+  const unit = state.unit === 'all' ? undefined : state.unit;
+  const difficulty = state.difficulty === 'mix' ? null : parseInt(state.difficulty, 10);
+  const count = parseInt(state.count, 10);
+
+  return {
+    subject,
+    unit,
+    difficulty,
+    count,
+  };
 }
 
 export function QuizSettings({ onStart, onShowStats }: QuizSettingsProps) {
@@ -39,13 +59,14 @@ export function QuizSettings({ onStart, onShowStats }: QuizSettingsProps) {
   ];
 
   const handleStart = () => {
-    const config: QuizConfig = {
-      subject: selectedSubject === 'all' ? undefined : selectedSubject,
-      unit: selectedUnit === 'all' ? undefined : selectedUnit,
-      difficulty: selectedDifficulty === 'mix' ? null : parseInt(selectedDifficulty),
-      count: parseInt(selectedCount),
-    };
-    onStart(config);
+    onStart(
+      buildQuizConfig({
+        subject: selectedSubject,
+        unit: selectedUnit,
+        difficulty: selectedDifficulty,
+        count: selectedCount,
+      }),
+    );
   };
 
   const difficultyOptions = [
@@ -132,57 +153,51 @@ export function QuizSettings({ onStart, onShowStats }: QuizSettingsProps) {
           {/* Difficulty Selection */}
           <div className="mb-8">
             <Label className="text-gray-900 mb-3 block">難易度</Label>
-            <RadioGroup value={selectedDifficulty} onValueChange={setSelectedDifficulty}>
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+            <Select value={selectedDifficulty} onValueChange={setSelectedDifficulty}>
+              <SelectTrigger className="w-full h-12 rounded-lg border-2 border-gray-200 px-3 text-left text-gray-800 font-medium focus-visible:ring-2 focus-visible:ring-indigo-200 focus-visible:border-indigo-500">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent
+                position="popper"
+                sideOffset={4}
+                className="w-[var(--radix-select-trigger-width)] min-w-[var(--radix-select-trigger-width)] rounded-xl border border-gray-100 bg-white shadow-xl"
+              >
                 {difficultyOptions.map((option) => (
-                  <div
+                  <SelectItem
                     key={option.value}
-                    className={`flex items-center space-x-2 p-3 rounded-lg border-2 transition-all cursor-pointer ${
-                      selectedDifficulty === option.value
-                        ? 'border-indigo-500 bg-indigo-50'
-                        : 'border-gray-200 bg-gray-50 hover:border-indigo-300'
-                    }`}
-                    onClick={() => setSelectedDifficulty(option.value)}
+                    value={option.value}
+                    className="text-gray-800 text-sm font-medium px-4 py-2 focus:bg-indigo-50 data-[highlighted]:bg-indigo-50 data-[state=checked]:bg-indigo-100 data-[state=checked]:text-indigo-700"
                   >
-                    <RadioGroupItem value={option.value} id={`difficulty-${option.value}`} />
-                    <Label
-                      htmlFor={`difficulty-${option.value}`}
-                      className="cursor-pointer flex-1 text-gray-700"
-                    >
-                      {option.label}
-                    </Label>
-                  </div>
+                    {option.label}
+                  </SelectItem>
                 ))}
-              </div>
-            </RadioGroup>
+              </SelectContent>
+            </Select>
           </div>
 
           {/* Question Count Selection */}
           <div className="mb-8">
             <Label className="text-gray-900 mb-3 block">問題数</Label>
-            <RadioGroup value={selectedCount} onValueChange={setSelectedCount}>
-              <div className="grid grid-cols-3 gap-3">
+            <Select value={selectedCount} onValueChange={setSelectedCount}>
+              <SelectTrigger className="w-full h-12 rounded-lg border-2 border-gray-200 px-3 text-left text-gray-800 font-medium focus-visible:ring-2 focus-visible:ring-indigo-200 focus-visible:border-indigo-500">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent
+                position="popper"
+                sideOffset={4}
+                className="w-[var(--radix-select-trigger-width)] min-w-[var(--radix-select-trigger-width)] rounded-xl border border-gray-100 bg-white shadow-xl"
+              >
                 {countOptions.map((option) => (
-                  <div
+                  <SelectItem
                     key={option.value}
-                    className={`flex items-center space-x-2 p-3 rounded-lg border-2 transition-all cursor-pointer ${
-                      selectedCount === option.value
-                        ? 'border-indigo-500 bg-indigo-50'
-                        : 'border-gray-200 bg-gray-50 hover:border-indigo-300'
-                    }`}
-                    onClick={() => setSelectedCount(option.value)}
+                    value={option.value}
+                    className="text-gray-800 text-sm font-medium px-4 py-2 focus:bg-indigo-50 data-[highlighted]:bg-indigo-50 data-[state=checked]:bg-indigo-100 data-[state=checked]:text-indigo-700"
                   >
-                    <RadioGroupItem value={option.value} id={`count-${option.value}`} />
-                    <Label
-                      htmlFor={`count-${option.value}`}
-                      className="cursor-pointer flex-1 text-gray-700"
-                    >
-                      {option.label}
-                    </Label>
-                  </div>
+                    {option.label}
+                  </SelectItem>
                 ))}
-              </div>
-            </RadioGroup>
+              </SelectContent>
+            </Select>
           </div>
 
           {/* Start Button */}
