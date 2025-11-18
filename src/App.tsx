@@ -362,7 +362,7 @@ export default function App() {
             <div className="flex-1" />
             <div className="inline-flex items-center gap-2 bg-white px-4 py-2 rounded-full shadow-sm">
               <BookOpen className="w-5 h-5 text-indigo-600" />
-              <span className="text-indigo-900">中受クイズ</span>
+              <span className="text-indigo-900">社会理科クイズ</span>
             </div>
             <div className="flex-1 flex justify-end gap-2">
               <Button

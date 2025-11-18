@@ -64,10 +64,10 @@ export function Auth({ onAuthSuccess }: AuthProps) {
           <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-full flex items-center justify-center mx-auto mb-4">
             <BookOpen className="w-8 h-8 text-white" />
           </div>
-          <h1 className="text-indigo-900 mb-2">中受クイズ</h1>
-          <p className="text-gray-600">
-            {isLogin ? 'ログインして学習を始めましょう' : 'アカウントを作成して始めましょう'}
-          </p>
+          <h1 className="text-indigo-900 mb-2">社会理科クイズ</h1>
+          {!isLogin && (
+            <p className="text-gray-600">アカウントを作成して始めましょう</p>
+          )}
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -84,7 +84,7 @@ export function Auth({ onAuthSuccess }: AuthProps) {
 
           <div>
             <label className="block text-gray-700 mb-2">パスワード</label>
-            <div className="relative">
+            <div className="relative" style={{ position: 'relative' }}>
               <Input
                 type={showPassword ? 'text' : 'password'}
                 value={password}
@@ -92,13 +92,14 @@ export function Auth({ onAuthSuccess }: AuthProps) {
                 placeholder="••••••••"
                 required
                 minLength={6}
-                className="pr-10"
+                className="pr-12"
                 aria-label="パスワード"
               />
               <button
                 type="button"
                 onClick={() => setShowPassword((v) => !v)}
-                className="absolute inset-y-0 right-0 px-3 flex items-center text-gray-500 hover:text-gray-700 focus:outline-none"
+                className="flex items-center text-gray-500 hover:text-gray-700 focus:outline-none"
+                style={{ position: 'absolute', right: '0.75rem', top: '50%', transform: 'translateY(-50%)' }}
                 aria-label={showPassword ? 'パスワードを非表示' : 'パスワードを表示'}
               >
                 {showPassword ? (
