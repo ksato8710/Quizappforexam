@@ -4,6 +4,7 @@ import { QuizSettings, QuizConfig } from './components/QuizSettings';
 import { Auth } from './components/Auth';
 import { QuizList } from './components/QuizList';
 import { Button } from './components/ui/button';
+import { Card } from './components/ui/card';
 import { BookOpen, RotateCcw, LogOut, BarChart3, Settings } from 'lucide-react';
 import { apiClient, Quiz } from './utils/api-client';
 import { getSupabaseClient } from './utils/supabase/client';
@@ -28,6 +29,7 @@ export default function App() {
   const [stats, setStats] = useState({ totalQuizzes: 0, totalCorrect: 0, totalAnswers: 0 });
   const [quizConfig, setQuizConfig] = useState<QuizConfig | null>(null);
   const [soundEffectId, setSoundEffectId] = useState<string>(DEFAULT_SOUND_EFFECT_ID);
+  const [noQuizzesMessage, setNoQuizzesMessage] = useState<string | null>(null);
 
   const supabase = getSupabaseClient();
 
@@ -58,6 +60,7 @@ export default function App() {
 
   const loadQuizzes = async (config?: QuizConfig) => {
     try {
+      setNoQuizzesMessage(null);
       const params = config ? {
         subject: config.subject,
         unit: config.unit,
@@ -94,9 +97,21 @@ export default function App() {
 
       console.log('Valid quizzes after filter:', validQuizzes);
       console.log('Quizzes after applying count limit:', limitedQuizzes.length);
+      if (limitedQuizzes.length === 0) {
+        const message = config?.historyFilter === 'unanswered'
+          ? '未回答の問題はありません！'
+          : config?.historyFilter === 'uncorrected'
+            ? 'すべて正解しています！'
+            : '該当する問題が見つかりません';
+        setNoQuizzesMessage(message);
+        setQuizzes([]);
+        return;
+      }
+      setNoQuizzesMessage(null);
       setQuizzes(limitedQuizzes);
     } catch (error) {
       console.error('Failed to load quizzes:', error);
+      setNoQuizzesMessage('クイズの読み込みに失敗しました。時間をおいて再試行してください。');
     }
   };
 
@@ -126,6 +141,7 @@ export default function App() {
     setIsCorrect(null);
     setCorrectCount(0);
     setSoundEffectId(config.soundEffect ?? DEFAULT_SOUND_EFFECT_ID);
+    setNoQuizzesMessage(null);
     loadQuizzes(config);
   };
 
@@ -143,6 +159,7 @@ export default function App() {
     setShowStats(false);
     setShowSettings(false);
     setQuizConfig(null);
+    setNoQuizzesMessage(null);
   };
 
   const currentQuiz = quizzes[currentQuizIndex];
@@ -346,6 +363,24 @@ export default function App() {
   }
 
   if (quizzes.length === 0) {
+    if (noQuizzesMessage) {
+      return (
+        <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
+          <Card className="max-w-xl w-full bg-white shadow-xl rounded-2xl p-8 text-center space-y-6">
+            <h2 className="text-indigo-900 text-2xl font-semibold">{noQuizzesMessage}</h2>
+            <p className="text-gray-600">別の条件を選んでみましょう。</p>
+            <div className="flex flex-wrap gap-3 justify-center">
+              <Button onClick={() => setShowSettings(true)} className="bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700">
+                設定に戻る
+              </Button>
+              <Button variant="outline" onClick={() => setShowStats(true)}>
+                統計を見る
+              </Button>
+            </div>
+          </Card>
+        </div>
+      );
+    }
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center">
         <div className="text-indigo-600">クイズを読み込んでいます...</div>

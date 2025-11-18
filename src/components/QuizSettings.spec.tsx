@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { render, fireEvent, screen, waitFor } from '@testing-library/react';
 import { QuizSettings, buildQuizConfig } from './QuizSettings';
+import { DEFAULT_SOUND_EFFECT_ID } from '../constants/sound-effects';
 
 vi.mock('../utils/api-client', () => ({
   apiClient: {
@@ -18,8 +19,9 @@ describe('buildQuizConfig', () => {
     const config = buildQuizConfig({
       subject: 'all',
       unit: 'all',
-      difficulty: 'mix',
       count: '10',
+      historyFilter: 'all',
+      soundEffect: DEFAULT_SOUND_EFFECT_ID,
     });
 
     expect(config).toEqual({
@@ -27,7 +29,8 @@ describe('buildQuizConfig', () => {
       unit: undefined,
       difficulty: null,
       count: 10,
-      soundEffect: undefined,
+      historyFilter: undefined,
+      soundEffect: DEFAULT_SOUND_EFFECT_ID,
     });
   });
 
@@ -36,6 +39,7 @@ describe('buildQuizConfig', () => {
       subject: '社会',
       unit: '国を閉ざした日本',
       count: '5',
+      historyFilter: 'unanswered',
       soundEffect: 'default',
     });
 
@@ -44,6 +48,7 @@ describe('buildQuizConfig', () => {
       unit: '国を閉ざした日本',
       difficulty: null,
       count: 5,
+      historyFilter: 'unanswered',
       soundEffect: 'default',
     });
   });

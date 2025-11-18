@@ -13,6 +13,7 @@ export interface QuizConfig {
   unit?: string;
   difficulty: number | null; // null means mix
   count: number;
+  historyFilter?: 'unanswered' | 'uncorrected';
   soundEffect?: string;
 }
 
@@ -26,6 +27,7 @@ export type QuizSelectionState = {
   subject: string;
   unit: string;
   count: string;
+  historyFilter: 'all' | 'unanswered' | 'uncorrected';
   soundEffect: string;
 };
 
@@ -34,12 +36,14 @@ export function buildQuizConfig(state: QuizSelectionState): QuizConfig {
   const unit = state.unit === 'all' ? undefined : state.unit;
   const difficulty = null;
   const count = parseInt(state.count, 10);
+  const historyFilter = state.historyFilter === 'all' ? undefined : state.historyFilter;
 
   return {
     subject,
     unit,
     difficulty,
     count,
+    historyFilter,
     soundEffect: state.soundEffect,
   };
 }
@@ -48,6 +52,7 @@ export function QuizSettings({ onStart, onShowStats, onLogout }: QuizSettingsPro
   const [selectedSubject, setSelectedSubject] = useState<string>('all');
   const [selectedUnit, setSelectedUnit] = useState<string>('all');
   const [selectedCount, setSelectedCount] = useState<string>('10');
+  const [selectedHistoryFilter, setSelectedHistoryFilter] = useState<'all' | 'unanswered' | 'uncorrected'>('all');
   const [selectedSoundEffect, setSelectedSoundEffect] = useState<string>(DEFAULT_SOUND_EFFECT_ID);
   const [loading, setLoading] = useState(false);
 
@@ -70,6 +75,7 @@ export function QuizSettings({ onStart, onShowStats, onLogout }: QuizSettingsPro
         subject: selectedSubject,
         unit: selectedUnit,
         count: selectedCount,
+        historyFilter: selectedHistoryFilter,
         soundEffect: selectedSoundEffect,
       }),
     );
@@ -80,6 +86,12 @@ export function QuizSettings({ onStart, onShowStats, onLogout }: QuizSettingsPro
     { value: '10', label: '10問' },
     { value: '20', label: '20問' },
   ];
+
+  const historyFilterOptions = [
+    { value: 'all', label: 'すべての問題' },
+    { value: 'unanswered', label: '未回答の問題のみ' },
+    { value: 'uncorrected', label: '正解したことがない問題のみ' },
+  ] as const;
 
   if (loading) {
     return (
@@ -148,6 +160,34 @@ export function QuizSettings({ onStart, onShowStats, onLogout }: QuizSettingsPro
                       className="h-4 w-4 border-gray-400 text-indigo-600 focus:ring-indigo-500"
                     />
                     <span>{unit.label}</span>
+                  </label>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* History Filter Selection */}
+          <div className="mb-8">
+            <Label className="text-gray-900 mb-3 block font-medium">履歴フィルタ</Label>
+            <div className="space-y-4">
+              {historyFilterOptions.map((option, index) => {
+                const historyId = `history-option-${index}`;
+                return (
+                  <label
+                    key={option.value}
+                    htmlFor={historyId}
+                    className="flex items-center gap-4 cursor-pointer text-gray-800 px-3 py-2 rounded-lg border border-gray-200 hover:border-indigo-400"
+                  >
+                    <input
+                      type="radio"
+                      id={historyId}
+                      name="history-filter"
+                      value={option.value}
+                      checked={selectedHistoryFilter === option.value}
+                      onChange={() => setSelectedHistoryFilter(option.value)}
+                      className="h-4 w-4 border-gray-400 text-indigo-600 focus:ring-indigo-500"
+                    />
+                    <span>{option.label}</span>
                   </label>
                 );
               })}
