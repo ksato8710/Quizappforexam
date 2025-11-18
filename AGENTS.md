@@ -2,6 +2,10 @@
 
 > **言語ポリシー**: このプロジェクトに関するエージェントとユーザーの対話（CLI/Issue/PR コメントを含む）は、原則として日本語で行ってください。例外が必要な場合のみ明示的に相談すること。
 
+## エージェント運用方針
+- 可能な作業（pull/push/テスト実行など）は原則としてエージェント自身が実行する。実行可否に不確実性がある場合は、すぐに確認コマンドを試し判断する。
+- 自分で完了できると判明した作業については、ユーザーへ依頼するのではなく積極的にエージェント側で実施する。
+
 ## プロジェクト概要
 - Vite 6 + React 18 + TypeScript の SPA。最上位は `src/App.tsx` で、ログイン（`Auth.tsx`）、クイズ進行（`QuizCard.tsx`/`QuizList.tsx`）、設定（`QuizSettings.tsx`）を切り替えている。
 - スタイリングは Tailwind CSS v4（`src/index.css` と `src/styles/globals.css`）を採用。色/半径トークンを CSS 変数化しているため、テーマ追加時は `globals.css` を更新してからユーティリティを当てる。
@@ -14,6 +18,7 @@
 - `src/styles/`: Tailwind カスタムテーマ。ダークモードの挙動や CSS 変数をここで集中管理する。
 - `src/test/setup.ts`: Vitest + Testing Library 用の matcher 拡張。新しい setUp が必要ならここに追記する。
 - `supabase/functions/make-server-856c5cf0/`: Edge Function（Hono + `kv_store.ts`）本体。`index.ts` に REST ルート、`kv_store.ts` に Key-Value 操作用のラッパがあり、Supabase Database テーブル `kv_store_856c5cf0` を操作する。
+- Supabase運用やクイズデータ更新の具体的な手順は `SUPABASE_OPERATIONS.md` と `QUIZ_DATA_WORKFLOW.md` を参照。
 - `quiz_source/`: 元データとなる教材 Markdown。クイズ更新時はここを参照しつつ、Edge Function 側の初期化処理を更新する。
 
 ## 開発・ビルド・テストコマンド
