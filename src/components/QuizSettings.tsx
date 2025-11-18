@@ -3,7 +3,7 @@ import { Card } from './ui/card';
 import { Button } from './ui/button';
 import { Label } from './ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
-import { Play, BarChart3 } from 'lucide-react';
+import { Play, BarChart3, LogOut } from 'lucide-react';
 import { apiClient } from '../utils/api-client';
 import { SOUND_EFFECT_PRESETS, DEFAULT_SOUND_EFFECT_ID } from '../constants/sound-effects';
 import { playSoundEffect } from '../utils/sound-effects';
@@ -19,6 +19,7 @@ export interface QuizConfig {
 interface QuizSettingsProps {
   onStart: (config: QuizConfig) => void;
   onShowStats?: () => void;
+  onLogout?: () => void;
 }
 
 export type QuizSelectionState = {
@@ -44,7 +45,7 @@ export function buildQuizConfig(state: QuizSelectionState): QuizConfig {
   };
 }
 
-export function QuizSettings({ onStart, onShowStats }: QuizSettingsProps) {
+export function QuizSettings({ onStart, onShowStats, onLogout }: QuizSettingsProps) {
   const [selectedSubject, setSelectedSubject] = useState<string>('all');
   const [selectedUnit, setSelectedUnit] = useState<string>('all');
   const [selectedDifficulty, setSelectedDifficulty] = useState<string>('mix');
@@ -258,6 +259,19 @@ export function QuizSettings({ onStart, onShowStats }: QuizSettingsProps) {
             >
               <BarChart3 className="w-5 h-5 mr-2" />
               統計情報を見る
+            </Button>
+          )}
+
+          {/* Logout Button */}
+          {onLogout && (
+            <Button
+              onClick={onLogout}
+              variant="outline"
+              className="w-full mt-3 text-red-600 border-red-200 hover:bg-red-50 hover:text-red-700"
+              size="lg"
+            >
+              <LogOut className="w-5 h-5 mr-2" />
+              ログアウト
             </Button>
           )}
         </Card>

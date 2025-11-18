@@ -7,7 +7,9 @@ import { Button } from './components/ui/button';
 import { BookOpen, RotateCcw, LogOut, BarChart3, Settings } from 'lucide-react';
 import { apiClient, Quiz } from './utils/api-client';
 import { getSupabaseClient } from './utils/supabase/client';
-import { limitQuizzesByCount } from './utils/quiz-helpers';
+import { filterQuizzesByConfig, limitQuizzesByCount, shuffleQuizzes, uniqueQuizzesById } from './utils/quiz-helpers';
+import { DEFAULT_SOUND_EFFECT_ID } from './constants/sound-effects';
+import { playSoundEffect } from './utils/sound-effects';
 
 export default function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -25,6 +27,7 @@ export default function App() {
   const [showQuizList, setShowQuizList] = useState(false);
   const [stats, setStats] = useState({ totalQuizzes: 0, totalCorrect: 0, totalAnswers: 0 });
   const [quizConfig, setQuizConfig] = useState<QuizConfig | null>(null);
+  const [soundEffectId, setSoundEffectId] = useState<string>(DEFAULT_SOUND_EFFECT_ID);
 
   const supabase = getSupabaseClient();
 
@@ -60,6 +63,7 @@ export default function App() {
         unit: config.unit,
         difficulty: config.difficulty,
         count: config.count,
+        historyFilter: config.historyFilter,
       } : undefined;
 
       const response = await apiClient.getQuizzes(params);
@@ -83,7 +87,10 @@ export default function App() {
         return true;
       });
 
-      const limitedQuizzes = limitQuizzesByCount(validQuizzes, config?.count);
+      const locallyFiltered = filterQuizzesByConfig(validQuizzes, config);
+      const uniqueQuizzes = uniqueQuizzesById(locallyFiltered);
+      const shuffledQuizzes = shuffleQuizzes(uniqueQuizzes);
+      const limitedQuizzes = limitQuizzesByCount(shuffledQuizzes, config?.count);
 
       console.log('Valid quizzes after filter:', validQuizzes);
       console.log('Quizzes after applying count limit:', limitedQuizzes.length);
@@ -118,6 +125,7 @@ export default function App() {
     setUserAnswer('');
     setIsCorrect(null);
     setCorrectCount(0);
+    setSoundEffectId(config.soundEffect ?? DEFAULT_SOUND_EFFECT_ID);
     loadQuizzes(config);
   };
 
@@ -145,6 +153,7 @@ export default function App() {
     setIsCorrect(correct);
     if (correct) {
       setCorrectCount(correctCount + 1);
+      playSoundEffect(soundEffectId);
     }
     setShowAnswer(true);
 
@@ -214,10 +223,14 @@ export default function App() {
   }
 
   if (showSettings) {
-    return <QuizSettings onStart={handleQuizStart} onShowStats={() => {
-      setShowStats(true);
-      setShowSettings(false);
-    }} />;
+    return <QuizSettings
+      onStart={handleQuizStart}
+      onShowStats={() => {
+        setShowStats(true);
+        setShowSettings(false);
+      }}
+      onLogout={handleLogout}
+    />;
   }
   if (showQuizList) {
     return (
