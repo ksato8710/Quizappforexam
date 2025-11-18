@@ -210,7 +210,13 @@ export function QuizSettings({ onStart, onShowStats }: QuizSettingsProps) {
           {/* Sound Effect Selection */}
           <div className="mb-8">
             <Label className="text-gray-900 mb-3 block">正解音</Label>
-            <Select value={selectedSoundEffect} onValueChange={setSelectedSoundEffect}>
+            <Select
+              value={selectedSoundEffect}
+              onValueChange={(value) => {
+                setSelectedSoundEffect(value);
+                playSoundEffect(value);
+              }}
+            >
               <SelectTrigger className="w-full h-12 rounded-lg border-2 border-gray-200 px-3 text-left text-gray-800 font-medium focus-visible:ring-2 focus-visible:ring-indigo-200 focus-visible:border-indigo-500">
                 <SelectValue />
               </SelectTrigger>
@@ -224,7 +230,6 @@ export function QuizSettings({ onStart, onShowStats }: QuizSettingsProps) {
                     key={preset.id}
                     value={preset.id}
                     className="text-gray-800 text-sm font-medium px-4 py-2 focus:bg-indigo-50 data-[highlighted]:bg-indigo-50 data-[state=checked]:bg-indigo-100 data-[state=checked]:text-indigo-700"
-                    onClick={() => playSoundEffect(preset.id)}
                   >
                     {preset.label}
                   </SelectItem>
