@@ -183,183 +183,223 @@ export function QuizSettings({ onStart, onShowStats, onLogout }: QuizSettingsPro
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 py-8 px-4">
-      <div className="max-w-4xl mx-auto space-y-6">
-        <div className="text-center mb-4">
+      <div className="max-w-3xl mx-auto">
+        <div className="text-center mb-8">
           <div className="flex items-center justify-center gap-2 mb-2">
             <BookOpen className="w-8 h-8 text-indigo-600" />
-            <h1 className="text-indigo-900 text-2xl font-semibold">クイズ設定</h1>
+            <h1 className="text-indigo-900">クイズ設定</h1>
           </div>
-          <p className="text-gray-600">学習したい内容を順番に選んでください</p>
+          <p className="text-gray-600">学習したい内容を選択してください</p>
         </div>
 
-        {/* Step 1 */}
-        <Card className="bg-white shadow-xl rounded-2xl p-6">
-          <div className="flex items-center gap-2 mb-4">
-            <span className="w-8 h-8 rounded-full bg-indigo-600 text-white flex items-center justify-center font-bold">1</span>
-            <h2 className="text-indigo-900 text-lg font-semibold">教科を選択</h2>
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            {SUBJECT_CARDS.map((card) => {
-              const isActive = selectedSubject === card.value;
-              return (
-                <button
-                  key={card.value}
-                  type="button"
-                  aria-pressed={isActive}
-                  aria-label={card.label}
-                  onClick={() => handleSubjectSelect(card.value)}
-                  className={`p-5 rounded-2xl border-2 transition-all text-left ${
-                    isActive ? 'border-indigo-500 bg-indigo-50 shadow-sm' : 'border-gray-200 hover:border-indigo-300'
-                  }`}
-                >
-                  <div className="text-4xl mb-2 text-center">{card.icon}</div>
-                  <p className={`font-bold text-center ${isActive ? 'text-indigo-700' : 'text-gray-800'}`}>{card.label}</p>
-                  <p className="text-sm text-gray-500 text-center mt-1">{card.description}</p>
-                </button>
-              );
-            })}
-          </div>
-        </Card>
-
-        {/* Step 2 */}
-        <Card className="bg-white shadow-xl rounded-2xl p-6">
-          <div className="flex items-center gap-2 mb-4">
-            <span className="w-8 h-8 rounded-full bg-indigo-600 text-white flex items-center justify-center font-bold">2</span>
-            <h2 className="text-indigo-900 text-lg font-semibold">単元を選択</h2>
-          </div>
-          {selectedSubject ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-              {availableUnits.map((unit) => {
-                const isActive = selectedUnit === unit.value;
+        <div className="space-y-6">
+          {/* ステップ1: 教科選択 */}
+          <Card className="bg-white shadow-xl rounded-2xl p-6">
+            <div className="flex items-center gap-2 mb-4">
+              <div className="w-8 h-8 shrink-0 rounded-full border-2 border-indigo-600 text-indigo-600 flex items-center justify-center font-bold text-base">
+                1
+              </div>
+              <h3 className="text-indigo-900 text-lg font-semibold">教科を選択</h3>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              {SUBJECT_CARDS.map((card) => {
+                const isActive = selectedSubject === card.value;
                 return (
                   <button
-                    key={`${unit.subject}-${unit.value}`}
+                    key={card.value}
                     type="button"
                     aria-pressed={isActive}
-                    aria-label={unit.label}
-                    onClick={() => handleUnitSelect(unit.value)}
-                    className={`p-4 rounded-2xl border-2 transition-all text-left ${
-                      isActive ? 'border-indigo-500 bg-indigo-50 shadow-sm' : 'border-gray-200 hover:border-indigo-300'
+                    aria-label={card.label}
+                    onClick={() => handleSubjectSelect(card.value)}
+                    className={`p-6 rounded-xl border-2 transition-all ${
+                      isActive
+                        ? 'border-indigo-500 bg-indigo-50'
+                        : 'border-gray-200 hover:border-indigo-300'
                     }`}
                   >
-                    <div className="text-3xl mb-2 text-center">{unit.icon}</div>
-                    <p className={`font-semibold text-center ${isActive ? 'text-indigo-700' : 'text-gray-800'}`}>{unit.label}</p>
-                    <p className="text-xs text-gray-500 text-center mt-1">{unit.description}</p>
+                    <div className="text-center">
+                      <div className="text-4xl mb-2">{card.icon}</div>
+                      <div className={`font-bold ${
+                        isActive ? 'text-indigo-700' : 'text-gray-700'
+                      }`}>{card.label}</div>
+                    </div>
                   </button>
                 );
               })}
             </div>
-          ) : (
-            <div className="bg-indigo-50 border border-dashed border-indigo-200 rounded-2xl p-6 text-center text-indigo-700 text-sm">
-              まず教科を選択してください
+          </Card>
+
+          {/* ステップ2: 単元選択 */}
+          {selectedSubject && (
+            <Card className="bg-white shadow-xl rounded-2xl p-6 animate-in slide-in-from-top-4 duration-300">
+              <div className="flex items-center gap-2 mb-4">
+                <div className="w-8 h-8 shrink-0 rounded-full border-2 border-indigo-600 text-indigo-600 flex items-center justify-center font-bold text-base">
+                  2
+                </div>
+                <h3 className="text-indigo-900 text-lg font-semibold">単元を選択</h3>
+              </div>
+
+              <div className={`grid gap-4 ${
+                selectedSubject === '社会' ? 'grid-cols-3' : 'grid-cols-4'
+              }`}>
+                {availableUnits.map((unit) => {
+                  const isActive = selectedUnit === unit.value;
+                  return (
+                    <button
+                      key={`${unit.subject}-${unit.value}`}
+                      type="button"
+                      aria-pressed={isActive}
+                      aria-label={unit.label}
+                      onClick={() => handleUnitSelect(unit.value)}
+                      className={`p-6 rounded-xl border-2 transition-all min-w-0 ${
+                        isActive
+                          ? 'border-indigo-500 bg-indigo-50'
+                          : 'border-gray-200 hover:border-indigo-300'
+                      }`}
+                    >
+                      <div className="text-center">
+                        <div className="text-3xl mb-2">{unit.icon}</div>
+                        <div className={`font-bold break-words ${
+                          isActive ? 'text-indigo-700' : 'text-gray-700'
+                        }`}>{unit.label}</div>
+                        <div className="text-xs text-gray-500 mt-1 break-words">{unit.description}</div>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            </Card>
+          )}
+
+          {/* ステップ3: 履歴フィルタ */}
+          {selectedUnit && (
+            <Card className="bg-white shadow-xl rounded-2xl p-6 animate-in slide-in-from-top-4 duration-300">
+              <div className="flex items-center gap-2 mb-4">
+                <div className="w-8 h-8 shrink-0 rounded-full border-2 border-indigo-600 text-indigo-600 flex items-center justify-center font-bold text-base">
+                  3
+                </div>
+                <h3 className="text-indigo-900 text-lg font-semibold">履歴フィルタ</h3>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                {HISTORY_FILTER_CARDS.map((card) => {
+                  const isActive = selectedHistoryFilter === card.value;
+                  return (
+                    <button
+                      key={card.value}
+                      type="button"
+                      aria-pressed={isActive}
+                      aria-label={card.label}
+                      onClick={() => setSelectedHistoryFilter(card.value as 'all' | 'unanswered' | 'uncorrected')}
+                      className={`p-6 rounded-xl border-2 transition-all ${
+                        isActive
+                          ? 'border-indigo-500 bg-indigo-50'
+                          : 'border-gray-200 hover:border-indigo-300'
+                      }`}
+                    >
+                      <div className="text-center">
+                        <div className="text-3xl mb-2">{card.icon}</div>
+                        <div className={`font-bold ${
+                          isActive ? 'text-indigo-700' : 'text-gray-700'
+                        }`}>{card.label}</div>
+                        <div className="text-xs text-gray-500 mt-1">{card.description}</div>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            </Card>
+          )}
+
+          {/* ステップ4: 問題数選択 */}
+          {selectedUnit && (
+            <Card className="bg-white shadow-xl rounded-2xl p-6 animate-in slide-in-from-top-4 duration-300">
+              <div className="flex items-center gap-2 mb-4">
+                <div className="w-8 h-8 shrink-0 rounded-full border-2 border-indigo-600 text-indigo-600 flex items-center justify-center font-bold text-base">
+                  4
+                </div>
+                <h3 className="text-indigo-900 text-lg font-semibold">問題数を選択</h3>
+              </div>
+              <div className="grid grid-cols-4 gap-3">
+                {QUESTION_COUNTS.map((count) => {
+                  const isActive = selectedCount === count;
+                  return (
+                    <button
+                      key={count}
+                      type="button"
+                      aria-pressed={isActive}
+                      aria-label={`${count}問`}
+                      onClick={() => setSelectedCount(count)}
+                      className={`px-4 py-3 rounded-lg border-2 transition-all ${
+                        isActive
+                          ? 'border-indigo-500 bg-indigo-50 text-indigo-700'
+                          : 'border-gray-200 hover:border-indigo-300'
+                      }`}
+                    >
+                      {count}問
+                    </button>
+                  );
+                })}
+              </div>
+            </Card>
+          )}
+
+          {/* ステップ5: 正解音選択 */}
+          {selectedUnit && (
+            <Card className="bg-white shadow-xl rounded-2xl p-6 animate-in slide-in-from-top-4 duration-300">
+              <div className="flex items-center gap-2 mb-4">
+                <div className="w-8 h-8 shrink-0 rounded-full border-2 border-indigo-600 text-indigo-600 flex items-center justify-center font-bold text-base">
+                  5
+                </div>
+                <h3 className="text-indigo-900 text-lg font-semibold">正解音を選択</h3>
+              </div>
+              <Select
+                value={selectedSoundEffect}
+                onValueChange={(value) => {
+                  setSelectedSoundEffect(value);
+                  playSoundEffect(value);
+                }}
+              >
+                <SelectTrigger className="w-full h-12 rounded-lg border-2 border-gray-200 px-3 text-left text-gray-800 font-medium focus-visible:ring-2 focus-visible:ring-indigo-200 focus-visible:border-indigo-500">
+                  <SelectValue placeholder="サウンドを選択" />
+                </SelectTrigger>
+                <SelectContent
+                  position="popper"
+                  sideOffset={4}
+                  className="w-[var(--radix-select-trigger-width)] min-w-[var(--radix-select-trigger-width)] rounded-xl border border-gray-100 bg-white shadow-xl max-h-[300px] overflow-y-auto"
+                >
+                  {SOUND_EFFECT_PRESETS.map((preset) => (
+                    <SelectItem
+                      key={preset.id}
+                      value={preset.id}
+                      className="text-gray-800 text-sm font-medium px-4 py-2 focus:bg-indigo-50 data-[highlighted]:bg-indigo-50 data-[state=checked]:bg-indigo-100 data-[state=checked]:text-indigo-700"
+                    >
+                      {preset.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </Card>
+          )}
+
+          {/* スタートボタン */}
+          {selectedUnit && (
+            <div className="animate-in slide-in-from-top-4 duration-300">
+              <Button
+                onClick={handleStart}
+                className="w-full bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white py-6"
+                size="lg"
+              >
+                <Play className="w-5 h-5 mr-2" />
+                クイズを始める
+                <ChevronRight className="w-5 h-5 ml-2" />
+              </Button>
             </div>
           )}
-        </Card>
 
-        {/* Step 3 */}
-        <Card className="bg-white shadow-xl rounded-2xl p-6">
-          <div className="flex items-center gap-2 mb-4">
-            <span className="w-8 h-8 rounded-full bg-indigo-600 text-white flex items-center justify-center font-bold">3</span>
-            <h2 className="text-indigo-900 text-lg font-semibold">履歴フィルタ</h2>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {HISTORY_FILTER_CARDS.map((card) => {
-              const isActive = selectedHistoryFilter === card.value;
-              return (
-                <button
-                  key={card.value}
-                  type="button"
-                  aria-pressed={isActive}
-                  aria-label={card.label}
-                  onClick={() => setSelectedHistoryFilter(card.value as 'all' | 'unanswered' | 'uncorrected')}
-                  className={`p-5 rounded-2xl border-2 transition-all text-left ${
-                    isActive ? 'border-indigo-500 bg-indigo-50 shadow-sm' : 'border-gray-200 hover:border-indigo-300'
-                  }`}
-                >
-                  <div className="text-3xl mb-2 text-center">{card.icon}</div>
-                  <p className={`font-semibold text-center ${isActive ? 'text-indigo-700' : 'text-gray-800'}`}>{card.label}</p>
-                  <p className="text-xs text-gray-500 text-center mt-1">{card.description}</p>
-                </button>
-              );
-            })}
-          </div>
-        </Card>
-
-        {/* Step 4 */}
-        <Card className="bg-white shadow-xl rounded-2xl p-6">
-          <div className="flex items-center gap-2 mb-4">
-            <span className="w-8 h-8 rounded-full bg-indigo-600 text-white flex items-center justify-center font-bold">4</span>
-            <h2 className="text-indigo-900 text-lg font-semibold">問題数を選択</h2>
-          </div>
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            {QUESTION_COUNTS.map((count) => {
-              const isActive = selectedCount === count;
-              return (
-                <button
-                  key={count}
-                  type="button"
-                  aria-pressed={isActive}
-                  aria-label={`${count}問`}
-                  onClick={() => setSelectedCount(count)}
-                  className={`px-4 py-3 rounded-lg border-2 transition-all font-semibold ${
-                    isActive ? 'border-indigo-500 bg-indigo-50 text-indigo-700' : 'border-gray-200 hover:border-indigo-300 text-gray-800'
-                  }`}
-                >
-                  {count}問
-                </button>
-              );
-            })}
-          </div>
-        </Card>
-
-        {/* Step 5 */}
-        <Card className="bg-white shadow-xl rounded-2xl p-6">
-          <div className="flex items-center gap-2 mb-4">
-            <span className="w-8 h-8 rounded-full bg-indigo-600 text-white flex items-center justify-center font-bold">5</span>
-            <h2 className="text-indigo-900 text-lg font-semibold">正解音を選択</h2>
-          </div>
-          <Select
-            value={selectedSoundEffect}
-            onValueChange={(value) => {
-              setSelectedSoundEffect(value);
-              playSoundEffect(value);
-            }}
-          >
-            <SelectTrigger className="w-full h-12 rounded-lg border-2 border-gray-200 px-3 text-left text-gray-800 font-medium focus-visible:ring-2 focus-visible:ring-indigo-200 focus-visible:border-indigo-500">
-              <SelectValue placeholder="サウンドを選択" />
-            </SelectTrigger>
-            <SelectContent
-              position="popper"
-              sideOffset={4}
-              className="w-[var(--radix-select-trigger-width)] min-w-[var(--radix-select-trigger-width)] rounded-xl border border-gray-100 bg-white shadow-xl max-h-[300px] overflow-y-auto"
-            >
-              {SOUND_EFFECT_PRESETS.map((preset) => (
-                <SelectItem
-                  key={preset.id}
-                  value={preset.id}
-                  className="text-gray-800 text-sm font-medium px-4 py-2 focus:bg-indigo-50 data-[highlighted]:bg-indigo-50 data-[state=checked]:bg-indigo-100 data-[state=checked]:text-indigo-700"
-                >
-                  {preset.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </Card>
-
-        <div className="space-y-3">
-          <Button
-            onClick={handleStart}
-            disabled={!selectedSubject || !selectedUnit}
-            className="w-full bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white py-5 text-lg"
-          >
-            <Play className="w-5 h-5 mr-2" />
-            クイズを始める
-            <ChevronRight className="w-5 h-5 ml-2" />
-          </Button>
-
-          <div className="flex flex-col md:flex-row gap-3">
+          {/* 統計情報とログアウト */}
+          <div className="flex flex-row gap-3">
             {onShowStats && (
-              <Button onClick={onShowStats} variant="outline" className="flex-1" size="lg">
+              <Button onClick={onShowStats} variant="outline" className="flex-1 py-6" size="lg">
                 <BarChart3 className="w-5 h-5 mr-2" />
                 統計情報を見る
               </Button>
@@ -369,7 +409,7 @@ export function QuizSettings({ onStart, onShowStats, onLogout }: QuizSettingsPro
               <Button
                 onClick={onLogout}
                 variant="outline"
-                className="flex-1 text-red-600 border-red-200 hover:bg-red-50 hover:text-red-700"
+                className="flex-1 py-6 text-red-600 border-red-200 hover:bg-red-50 hover:text-red-700"
                 size="lg"
               >
                 <LogOut className="w-5 h-5 mr-2" />
