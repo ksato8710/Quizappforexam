@@ -58,15 +58,15 @@ describe('QuizSettings UI', () => {
   it('allows selecting subject options via button click', async () => {
     render(<QuizSettings onStart={vi.fn()} />);
 
-    const subjectButton = screen.getByRole('button', { name: '社会' });
-    fireEvent.click(subjectButton);
+    const subjectButtons = screen.getAllByRole('button', { name: '社会' });
+    fireEvent.click(subjectButtons[0]);
 
     await waitFor(() => {
-      expect(subjectButton).toHaveAttribute('aria-pressed', 'true');
+      expect(subjectButtons.some((btn) => btn.getAttribute('aria-pressed') === 'true')).toBe(true);
     });
   });
 
-  it('shows default selections for each step', () => {
+  it('shows default selections for steps after selecting subject', () => {
     render(<QuizSettings onStart={vi.fn()} />);
 
     const expectSelected = (label: string) => {
@@ -74,7 +74,10 @@ describe('QuizSettings UI', () => {
       expect(buttons.some((btn) => btn.getAttribute('aria-pressed') === 'true')).toBe(true);
     };
 
-    expectSelected('全教科');
+    // 教科選択後に単元/履歴/問題数の初期状態を確認
+    const socialButton = screen.getAllByRole('button', { name: '社会' })[0];
+    fireEvent.click(socialButton);
+
     expectSelected('全単元');
     expectSelected('すべての問題');
     expectSelected('10問');

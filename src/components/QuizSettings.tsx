@@ -22,8 +22,8 @@ interface QuizSettingsProps {
 }
 
 export type QuizSelectionState = {
-  subject: string;
-  unit: string;
+  subject: string | null;
+  unit: string | null;
   count: string;
   historyFilter: 'all' | 'unanswered' | 'uncorrected';
   soundEffect: string;
@@ -37,12 +37,6 @@ type SelectionCard = {
 };
 
 const SUBJECT_CARDS: SelectionCard[] = [
-  {
-    value: 'all',
-    label: '全教科',
-    icon: '📚',
-    description: '社会・理科のすべてから出題',
-  },
   {
     value: '社会',
     label: '社会',
@@ -60,15 +54,6 @@ const SUBJECT_CARDS: SelectionCard[] = [
 type UnitCard = SelectionCard & { subject: string };
 
 const UNIT_CARDS: Record<string, UnitCard[]> = {
-  all: [
-    {
-      value: 'all',
-      label: '全単元',
-      icon: '📘',
-      description: 'すべての単元からランダム',
-      subject: 'all',
-    },
-  ],
   '社会': [
     {
       value: 'all',
@@ -148,8 +133,8 @@ const HISTORY_FILTER_CARDS: SelectionCard[] = [
 const QUESTION_COUNTS = [5, 10, 20, 30];
 
 export function buildQuizConfig(state: QuizSelectionState): QuizConfig {
-  const subject = state.subject === 'all' ? undefined : state.subject;
-  const unit = state.unit === 'all' ? undefined : state.unit;
+  const subject = state.subject && state.subject !== 'all' ? state.subject : undefined;
+  const unit = state.unit && state.unit !== 'all' ? state.unit : undefined;
   const historyFilter = state.historyFilter === 'all' ? undefined : state.historyFilter;
 
   return {
@@ -163,20 +148,21 @@ export function buildQuizConfig(state: QuizSelectionState): QuizConfig {
 }
 
 export function QuizSettings({ onStart, onShowStats, onLogout }: QuizSettingsProps) {
-  const [selectedSubject, setSelectedSubject] = useState<string>('all');
-  const [selectedUnit, setSelectedUnit] = useState<string>('all');
+  const [selectedSubject, setSelectedSubject] = useState<string | null>(null);
+  const [selectedUnit, setSelectedUnit] = useState<string | null>(null);
   const [selectedHistoryFilter, setSelectedHistoryFilter] = useState<'all' | 'unanswered' | 'uncorrected'>('all');
   const [selectedCount, setSelectedCount] = useState<number>(10);
   const [selectedSoundEffect, setSelectedSoundEffect] = useState<string>(DEFAULT_SOUND_EFFECT_ID);
 
   const availableUnits = useMemo(() => {
-    return UNIT_CARDS[selectedSubject] ?? UNIT_CARDS.all;
+    if (!selectedSubject) return [];
+    return UNIT_CARDS[selectedSubject] ?? [];
   }, [selectedSubject]);
 
   const handleSubjectSelect = (value: string) => {
     setSelectedSubject(value);
-    const firstUnit = (UNIT_CARDS[value] ?? UNIT_CARDS.all)[0];
-    setSelectedUnit(firstUnit?.value ?? 'all');
+    const firstUnit = (UNIT_CARDS[value] ?? [])[0];
+    setSelectedUnit(firstUnit?.value ?? null);
   };
 
   const handleUnitSelect = (value: string) => {
@@ -212,7 +198,7 @@ export function QuizSettings({ onStart, onShowStats, onLogout }: QuizSettingsPro
             <span className="w-8 h-8 rounded-full bg-indigo-600 text-white flex items-center justify-center font-bold">1</span>
             <h2 className="text-indigo-900 text-lg font-semibold">教科を選択</h2>
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             {SUBJECT_CARDS.map((card) => {
               const isActive = selectedSubject === card.value;
               return (
@@ -241,27 +227,33 @@ export function QuizSettings({ onStart, onShowStats, onLogout }: QuizSettingsPro
             <span className="w-8 h-8 rounded-full bg-indigo-600 text-white flex items-center justify-center font-bold">2</span>
             <h2 className="text-indigo-900 text-lg font-semibold">単元を選択</h2>
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {availableUnits.map((unit) => {
-              const isActive = selectedUnit === unit.value;
-              return (
-                <button
-                  key={`${unit.subject}-${unit.value}`}
-                  type="button"
-                  aria-pressed={isActive}
-                  aria-label={unit.label}
-                  onClick={() => handleUnitSelect(unit.value)}
-                  className={`p-5 rounded-2xl border-2 transition-all text-left ${
-                    isActive ? 'border-indigo-500 bg-indigo-50 shadow-sm' : 'border-gray-200 hover:border-indigo-300'
-                  }`}
-                >
-                  <div className="text-3xl mb-2 text-center">{unit.icon}</div>
-                  <p className={`font-semibold text-center ${isActive ? 'text-indigo-700' : 'text-gray-800'}`}>{unit.label}</p>
-                  <p className="text-xs text-gray-500 text-center mt-1">{unit.description}</p>
-                </button>
-              );
-            })}
-          </div>
+          {selectedSubject ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+              {availableUnits.map((unit) => {
+                const isActive = selectedUnit === unit.value;
+                return (
+                  <button
+                    key={`${unit.subject}-${unit.value}`}
+                    type="button"
+                    aria-pressed={isActive}
+                    aria-label={unit.label}
+                    onClick={() => handleUnitSelect(unit.value)}
+                    className={`p-4 rounded-2xl border-2 transition-all text-left ${
+                      isActive ? 'border-indigo-500 bg-indigo-50 shadow-sm' : 'border-gray-200 hover:border-indigo-300'
+                    }`}
+                  >
+                    <div className="text-3xl mb-2 text-center">{unit.icon}</div>
+                    <p className={`font-semibold text-center ${isActive ? 'text-indigo-700' : 'text-gray-800'}`}>{unit.label}</p>
+                    <p className="text-xs text-gray-500 text-center mt-1">{unit.description}</p>
+                  </button>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="bg-indigo-50 border border-dashed border-indigo-200 rounded-2xl p-6 text-center text-indigo-700 text-sm">
+              まず教科を選択してください
+            </div>
+          )}
         </Card>
 
         {/* Step 3 */}
