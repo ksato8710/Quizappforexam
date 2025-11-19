@@ -1,17 +1,15 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Card } from './ui/card';
 import { Button } from './ui/button';
-import { Label } from './ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
-import { Play, BarChart3, LogOut } from 'lucide-react';
-import { apiClient } from '../utils/api-client';
+import { BookOpen, Play, ChevronRight, BarChart3, LogOut } from 'lucide-react';
 import { SOUND_EFFECT_PRESETS, DEFAULT_SOUND_EFFECT_ID } from '../constants/sound-effects';
 import { playSoundEffect } from '../utils/sound-effects';
 
 export interface QuizConfig {
   subject?: string;
   unit?: string;
-  difficulty: number | null; // null means mix
+  difficulty: number | null;
   count: number;
   historyFilter?: 'unanswered' | 'uncorrected';
   soundEffect?: string;
@@ -31,18 +29,134 @@ export type QuizSelectionState = {
   soundEffect: string;
 };
 
+type SelectionCard = {
+  value: string;
+  label: string;
+  icon: string;
+  description: string;
+};
+
+const SUBJECT_CARDS: SelectionCard[] = [
+  {
+    value: 'all',
+    label: '全教科',
+    icon: '📚',
+    description: '社会・理科のすべてから出題',
+  },
+  {
+    value: '社会',
+    label: '社会',
+    icon: '🌏',
+    description: '歴史や地理の問題',
+  },
+  {
+    value: '理科',
+    label: '理科',
+    icon: '🔬',
+    description: '物理・化学・地学の問題',
+  },
+];
+
+type UnitCard = SelectionCard & { subject: string };
+
+const UNIT_CARDS: Record<string, UnitCard[]> = {
+  all: [
+    {
+      value: 'all',
+      label: '全単元',
+      icon: '📘',
+      description: 'すべての単元からランダム',
+      subject: 'all',
+    },
+  ],
+  '社会': [
+    {
+      value: 'all',
+      label: '全単元',
+      icon: '📘',
+      description: '社会の全単元',
+      subject: '社会',
+    },
+    {
+      value: '強かな支配の中で生きた人々',
+      label: '強かな支配の中で生きた人々',
+      icon: '🏯',
+      description: '江戸時代初期の社会',
+      subject: '社会',
+    },
+    {
+      value: '国を閉ざした日本',
+      label: '国を閉ざした日本',
+      icon: '🗺️',
+      description: '鎖国体制と国内の変化',
+      subject: '社会',
+    },
+  ],
+  '理科': [
+    {
+      value: 'all',
+      label: '全単元',
+      icon: '📘',
+      description: '理科の全単元',
+      subject: '理科',
+    },
+    {
+      value: '物理',
+      label: '物理',
+      icon: '⚛️',
+      description: '力・運動・エネルギー',
+      subject: '理科',
+    },
+    {
+      value: '化学',
+      label: '化学',
+      icon: '🧪',
+      description: '物質の性質と変化',
+      subject: '理科',
+    },
+    {
+      value: '地学',
+      label: '地学',
+      icon: '🌌',
+      description: '天気や宇宙のしくみ',
+      subject: '理科',
+    },
+  ],
+};
+
+const HISTORY_FILTER_CARDS: SelectionCard[] = [
+  {
+    value: 'all',
+    label: 'すべての問題',
+    icon: '🗂️',
+    description: '履歴に関係なく全て出題',
+  },
+  {
+    value: 'unanswered',
+    label: '未回答のみ',
+    icon: '📝',
+    description: 'まだ解いていない問題だけ',
+  },
+  {
+    value: 'uncorrected',
+    label: '正解していない問題のみ',
+    icon: '🎯',
+    description: '一度も正解していない問題だけ',
+  },
+];
+
+const QUESTION_COUNTS = [5, 10, 20, 30];
+
 export function buildQuizConfig(state: QuizSelectionState): QuizConfig {
   const subject = state.subject === 'all' ? undefined : state.subject;
   const unit = state.unit === 'all' ? undefined : state.unit;
-  const difficulty = null;
-  const count = parseInt(state.count, 10);
   const historyFilter = state.historyFilter === 'all' ? undefined : state.historyFilter;
 
   return {
     subject,
     unit,
-    difficulty,
-    count,
+    difficulty: null,
+    count: parseInt(state.count, 10),
     historyFilter,
     soundEffect: state.soundEffect,
   };
@@ -51,227 +165,209 @@ export function buildQuizConfig(state: QuizSelectionState): QuizConfig {
 export function QuizSettings({ onStart, onShowStats, onLogout }: QuizSettingsProps) {
   const [selectedSubject, setSelectedSubject] = useState<string>('all');
   const [selectedUnit, setSelectedUnit] = useState<string>('all');
-  const [selectedCount, setSelectedCount] = useState<string>('10');
   const [selectedHistoryFilter, setSelectedHistoryFilter] = useState<'all' | 'unanswered' | 'uncorrected'>('all');
+  const [selectedCount, setSelectedCount] = useState<number>(10);
   const [selectedSoundEffect, setSelectedSoundEffect] = useState<string>(DEFAULT_SOUND_EFFECT_ID);
-  const [loading, setLoading] = useState(false);
 
+  const availableUnits = useMemo(() => {
+    return UNIT_CARDS[selectedSubject] ?? UNIT_CARDS.all;
+  }, [selectedSubject]);
 
-  const subjects = [
-    { value: 'all', label: '全教科' },
-    { value: '社会', label: '社会' },
-    { value: '理科', label: '理科' },
-  ];
+  const handleSubjectSelect = (value: string) => {
+    setSelectedSubject(value);
+    const firstUnit = (UNIT_CARDS[value] ?? UNIT_CARDS.all)[0];
+    setSelectedUnit(firstUnit?.value ?? 'all');
+  };
 
-  const units = [
-    { value: 'all', label: '全単元' },
-    { value: '強かな支配の中で生きた人々', label: '強かな支配の中で生きた人々' },
-    { value: '国を閉ざした日本', label: '国を閉ざした日本' },
-  ];
+  const handleUnitSelect = (value: string) => {
+    setSelectedUnit(value);
+  };
 
   const handleStart = () => {
     onStart(
       buildQuizConfig({
         subject: selectedSubject,
         unit: selectedUnit,
-        count: selectedCount,
+        count: String(selectedCount),
         historyFilter: selectedHistoryFilter,
         soundEffect: selectedSoundEffect,
       }),
     );
   };
 
-  const countOptions = [
-    { value: '5', label: '5問' },
-    { value: '10', label: '10問' },
-    { value: '20', label: '20問' },
-  ];
-
-  const historyFilterOptions = [
-    { value: 'all', label: 'すべての問題' },
-    { value: 'unanswered', label: '未回答の問題のみ' },
-    { value: 'uncorrected', label: '正解したことがない問題のみ' },
-  ] as const;
-
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center">
-        <div className="text-indigo-600">読み込み中...</div>
-      </div>
-    );
-  }
-
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 py-8 px-4">
-      <div className="max-w-2xl mx-auto">
-        <div className="text-center mb-8">
-          <h1 className="text-indigo-900 mb-2">クイズ設定</h1>
-          <p className="text-gray-600">お好みの設定でクイズを始めましょう</p>
+      <div className="max-w-4xl mx-auto space-y-6">
+        <div className="text-center mb-4">
+          <div className="flex items-center justify-center gap-2 mb-2">
+            <BookOpen className="w-8 h-8 text-indigo-600" />
+            <h1 className="text-indigo-900 text-2xl font-semibold">クイズ設定</h1>
+          </div>
+          <p className="text-gray-600">学習したい内容を順番に選んでください</p>
         </div>
 
-        <Card className="bg-white shadow-xl rounded-2xl p-8">
-          {/* Subject Selection */}
-          <div className="mb-8">
-            <Label className="text-gray-900 mb-3 block font-medium">教科</Label>
-            <div className="space-y-4">
-              {subjects.map((subject, index) => {
-                const subjectId = `subject-option-${index}`;
-                return (
-                  <label
-                    key={subject.value}
-                    htmlFor={subjectId}
-                    className="flex items-center gap-4 cursor-pointer text-gray-800 px-3 py-2 rounded-lg border border-gray-200 hover:border-indigo-400"
-                  >
-                    <input
-                      type="radio"
-                      id={subjectId}
-                      name="subject"
-                      value={subject.value}
-                      checked={selectedSubject === subject.value}
-                      onChange={() => setSelectedSubject(subject.value)}
-                      className="h-4 w-4 border-gray-400 text-indigo-600 focus:ring-indigo-500"
-                    />
-                    <span>{subject.label}</span>
-                  </label>
-                );
-              })}
-            </div>
+        {/* Step 1 */}
+        <Card className="bg-white shadow-xl rounded-2xl p-6">
+          <div className="flex items-center gap-2 mb-4">
+            <span className="w-8 h-8 rounded-full bg-indigo-600 text-white flex items-center justify-center font-bold">1</span>
+            <h2 className="text-indigo-900 text-lg font-semibold">教科を選択</h2>
           </div>
-
-          {/* Unit Selection */}
-          <div className="mb-8">
-            <Label className="text-gray-900 mb-3 block font-medium">単元</Label>
-            <div className="space-y-4">
-              {units.map((unit, index) => {
-                const unitId = `unit-option-${index}`;
-                return (
-                  <label
-                    key={unit.value}
-                    htmlFor={unitId}
-                    className="flex items-center gap-4 cursor-pointer text-gray-800 px-3 py-2 rounded-lg border border-gray-200 hover:border-indigo-400"
-                  >
-                    <input
-                      type="radio"
-                      id={unitId}
-                      name="unit"
-                      value={unit.value}
-                      checked={selectedUnit === unit.value}
-                      onChange={() => setSelectedUnit(unit.value)}
-                      className="h-4 w-4 border-gray-400 text-indigo-600 focus:ring-indigo-500"
-                    />
-                    <span>{unit.label}</span>
-                  </label>
-                );
-              })}
-            </div>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            {SUBJECT_CARDS.map((card) => {
+              const isActive = selectedSubject === card.value;
+              return (
+                <button
+                  key={card.value}
+                  type="button"
+                  aria-pressed={isActive}
+                  aria-label={card.label}
+                  onClick={() => handleSubjectSelect(card.value)}
+                  className={`p-5 rounded-2xl border-2 transition-all text-left ${
+                    isActive ? 'border-indigo-500 bg-indigo-50 shadow-sm' : 'border-gray-200 hover:border-indigo-300'
+                  }`}
+                >
+                  <div className="text-4xl mb-2 text-center">{card.icon}</div>
+                  <p className={`font-bold text-center ${isActive ? 'text-indigo-700' : 'text-gray-800'}`}>{card.label}</p>
+                  <p className="text-sm text-gray-500 text-center mt-1">{card.description}</p>
+                </button>
+              );
+            })}
           </div>
+        </Card>
 
-          {/* History Filter Selection */}
-          <div className="mb-8">
-            <Label className="text-gray-900 mb-3 block font-medium">履歴フィルタ</Label>
-            <div className="space-y-4">
-              {historyFilterOptions.map((option, index) => {
-                const historyId = `history-option-${index}`;
-                return (
-                  <label
-                    key={option.value}
-                    htmlFor={historyId}
-                    className="flex items-center gap-4 cursor-pointer text-gray-800 px-3 py-2 rounded-lg border border-gray-200 hover:border-indigo-400"
-                  >
-                    <input
-                      type="radio"
-                      id={historyId}
-                      name="history-filter"
-                      value={option.value}
-                      checked={selectedHistoryFilter === option.value}
-                      onChange={() => setSelectedHistoryFilter(option.value)}
-                      className="h-4 w-4 border-gray-400 text-indigo-600 focus:ring-indigo-500"
-                    />
-                    <span>{option.label}</span>
-                  </label>
-                );
-              })}
-            </div>
+        {/* Step 2 */}
+        <Card className="bg-white shadow-xl rounded-2xl p-6">
+          <div className="flex items-center gap-2 mb-4">
+            <span className="w-8 h-8 rounded-full bg-indigo-600 text-white flex items-center justify-center font-bold">2</span>
+            <h2 className="text-indigo-900 text-lg font-semibold">単元を選択</h2>
           </div>
-
-          {/* Question Count Selection */}
-          <div className="mb-8">
-            <Label className="text-gray-900 mb-3 block font-medium">問題数</Label>
-            <div className="space-y-4">
-              {countOptions.map((option, index) => {
-                const countId = `count-option-${index}`;
-                return (
-                  <label
-                    key={option.value}
-                    htmlFor={countId}
-                    className="flex items-center gap-4 cursor-pointer text-gray-800 px-3 py-2 rounded-lg border border-gray-200 hover:border-indigo-400"
-                  >
-                    <input
-                      type="radio"
-                      id={countId}
-                      name="count"
-                      value={option.value}
-                      checked={selectedCount === option.value}
-                      onChange={() => setSelectedCount(option.value)}
-                      className="h-4 w-4 border-gray-400 text-indigo-600 focus:ring-indigo-500"
-                    />
-                    <span>{option.label}</span>
-                  </label>
-                );
-              })}
-            </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {availableUnits.map((unit) => {
+              const isActive = selectedUnit === unit.value;
+              return (
+                <button
+                  key={`${unit.subject}-${unit.value}`}
+                  type="button"
+                  aria-pressed={isActive}
+                  aria-label={unit.label}
+                  onClick={() => handleUnitSelect(unit.value)}
+                  className={`p-5 rounded-2xl border-2 transition-all text-left ${
+                    isActive ? 'border-indigo-500 bg-indigo-50 shadow-sm' : 'border-gray-200 hover:border-indigo-300'
+                  }`}
+                >
+                  <div className="text-3xl mb-2 text-center">{unit.icon}</div>
+                  <p className={`font-semibold text-center ${isActive ? 'text-indigo-700' : 'text-gray-800'}`}>{unit.label}</p>
+                  <p className="text-xs text-gray-500 text-center mt-1">{unit.description}</p>
+                </button>
+              );
+            })}
           </div>
+        </Card>
 
-          {/* Sound Effect Selection */}
-          <div className="mb-8">
-            <Label className="text-gray-900 mb-3 block">正解音</Label>
-            <Select
-              value={selectedSoundEffect}
-              onValueChange={(value) => {
-                setSelectedSoundEffect(value);
-                playSoundEffect(value);
-              }}
+        {/* Step 3 */}
+        <Card className="bg-white shadow-xl rounded-2xl p-6">
+          <div className="flex items-center gap-2 mb-4">
+            <span className="w-8 h-8 rounded-full bg-indigo-600 text-white flex items-center justify-center font-bold">3</span>
+            <h2 className="text-indigo-900 text-lg font-semibold">履歴フィルタ</h2>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {HISTORY_FILTER_CARDS.map((card) => {
+              const isActive = selectedHistoryFilter === card.value;
+              return (
+                <button
+                  key={card.value}
+                  type="button"
+                  aria-pressed={isActive}
+                  aria-label={card.label}
+                  onClick={() => setSelectedHistoryFilter(card.value as 'all' | 'unanswered' | 'uncorrected')}
+                  className={`p-5 rounded-2xl border-2 transition-all text-left ${
+                    isActive ? 'border-indigo-500 bg-indigo-50 shadow-sm' : 'border-gray-200 hover:border-indigo-300'
+                  }`}
+                >
+                  <div className="text-3xl mb-2 text-center">{card.icon}</div>
+                  <p className={`font-semibold text-center ${isActive ? 'text-indigo-700' : 'text-gray-800'}`}>{card.label}</p>
+                  <p className="text-xs text-gray-500 text-center mt-1">{card.description}</p>
+                </button>
+              );
+            })}
+          </div>
+        </Card>
+
+        {/* Step 4 */}
+        <Card className="bg-white shadow-xl rounded-2xl p-6">
+          <div className="flex items-center gap-2 mb-4">
+            <span className="w-8 h-8 rounded-full bg-indigo-600 text-white flex items-center justify-center font-bold">4</span>
+            <h2 className="text-indigo-900 text-lg font-semibold">問題数を選択</h2>
+          </div>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            {QUESTION_COUNTS.map((count) => {
+              const isActive = selectedCount === count;
+              return (
+                <button
+                  key={count}
+                  type="button"
+                  aria-pressed={isActive}
+                  aria-label={`${count}問`}
+                  onClick={() => setSelectedCount(count)}
+                  className={`px-4 py-3 rounded-lg border-2 transition-all font-semibold ${
+                    isActive ? 'border-indigo-500 bg-indigo-50 text-indigo-700' : 'border-gray-200 hover:border-indigo-300 text-gray-800'
+                  }`}
+                >
+                  {count}問
+                </button>
+              );
+            })}
+          </div>
+        </Card>
+
+        {/* Step 5 */}
+        <Card className="bg-white shadow-xl rounded-2xl p-6">
+          <div className="flex items-center gap-2 mb-4">
+            <span className="w-8 h-8 rounded-full bg-indigo-600 text-white flex items-center justify-center font-bold">5</span>
+            <h2 className="text-indigo-900 text-lg font-semibold">正解音を選択</h2>
+          </div>
+          <Select
+            value={selectedSoundEffect}
+            onValueChange={(value) => {
+              setSelectedSoundEffect(value);
+              playSoundEffect(value);
+            }}
+          >
+            <SelectTrigger className="w-full h-12 rounded-lg border-2 border-gray-200 px-3 text-left text-gray-800 font-medium focus-visible:ring-2 focus-visible:ring-indigo-200 focus-visible:border-indigo-500">
+              <SelectValue placeholder="サウンドを選択" />
+            </SelectTrigger>
+            <SelectContent
+              position="popper"
+              sideOffset={4}
+              className="w-[var(--radix-select-trigger-width)] min-w-[var(--radix-select-trigger-width)] rounded-xl border border-gray-100 bg-white shadow-xl max-h-[300px] overflow-y-auto"
             >
-              <SelectTrigger className="w-full h-12 rounded-lg border-2 border-gray-200 px-3 text-left text-gray-800 font-medium focus-visible:ring-2 focus-visible:ring-indigo-200 focus-visible:border-indigo-500">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent
-                position="popper"
-                sideOffset={4}
-                className="w-[var(--radix-select-trigger-width)] min-w-[var(--radix-select-trigger-width)] rounded-xl border border-gray-100 bg-white shadow-xl max-h-[300px] overflow-y-auto"
-              >
-                {SOUND_EFFECT_PRESETS.map((preset) => (
-                  <SelectItem
-                    key={preset.id}
-                    value={preset.id}
-                    className="text-gray-800 text-sm font-medium px-4 py-2 focus:bg-indigo-50 data-[highlighted]:bg-indigo-50 data-[state=checked]:bg-indigo-100 data-[state=checked]:text-indigo-700"
-                  >
-                    {preset.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+              {SOUND_EFFECT_PRESETS.map((preset) => (
+                <SelectItem
+                  key={preset.id}
+                  value={preset.id}
+                  className="text-gray-800 text-sm font-medium px-4 py-2 focus:bg-indigo-50 data-[highlighted]:bg-indigo-50 data-[state=checked]:bg-indigo-100 data-[state=checked]:text-indigo-700"
+                >
+                  {preset.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </Card>
 
-          {/* Start Button */}
+        <div className="space-y-3">
           <Button
             onClick={handleStart}
-            className="w-full bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700"
-            size="lg"
+            disabled={!selectedSubject || !selectedUnit}
+            className="w-full bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white py-5 text-lg"
           >
             <Play className="w-5 h-5 mr-2" />
             クイズを始める
+            <ChevronRight className="w-5 h-5 ml-2" />
           </Button>
 
-          {/* Stats and Logout Buttons */}
-          <div className="flex gap-3 mt-3">
+          <div className="flex flex-col md:flex-row gap-3">
             {onShowStats && (
-              <Button
-                onClick={onShowStats}
-                variant="outline"
-                className="flex-1"
-                size="lg"
-              >
+              <Button onClick={onShowStats} variant="outline" className="flex-1" size="lg">
                 <BarChart3 className="w-5 h-5 mr-2" />
                 統計情報を見る
               </Button>
@@ -289,7 +385,7 @@ export function QuizSettings({ onStart, onShowStats, onLogout }: QuizSettingsPro
               </Button>
             )}
           </div>
-        </Card>
+        </div>
       </div>
     </div>
   );

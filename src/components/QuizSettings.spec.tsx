@@ -55,22 +55,28 @@ describe('buildQuizConfig', () => {
 });
 
 describe('QuizSettings UI', () => {
-  it('allows selecting radio options via label click', async () => {
+  it('allows selecting subject options via button click', async () => {
     render(<QuizSettings onStart={vi.fn()} />);
 
-    const subjectRadio = screen.getAllByLabelText('社会')[0];
-    fireEvent.click(subjectRadio);
+    const subjectButton = screen.getByRole('button', { name: '社会' });
+    fireEvent.click(subjectButton);
 
     await waitFor(() => {
-      expect(subjectRadio).toBeChecked();
+      expect(subjectButton).toHaveAttribute('aria-pressed', 'true');
     });
   });
 
-  it('shows default selections for each radio group', () => {
+  it('shows default selections for each step', () => {
     render(<QuizSettings onStart={vi.fn()} />);
 
-    expect(screen.getAllByLabelText('全教科')[0]).toHaveAttribute('checked');
-    expect(screen.getAllByLabelText('全単元')[0]).toHaveAttribute('checked');
-    expect(screen.getAllByLabelText('10問')[0]).toHaveAttribute('checked');
+    const expectSelected = (label: string) => {
+      const buttons = screen.getAllByRole('button', { name: label });
+      expect(buttons.some((btn) => btn.getAttribute('aria-pressed') === 'true')).toBe(true);
+    };
+
+    expectSelected('全教科');
+    expectSelected('全単元');
+    expectSelected('すべての問題');
+    expectSelected('10問');
   });
 });
