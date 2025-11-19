@@ -86,24 +86,10 @@ const UNIT_CARDS: Record<string, UnitCard[]> = {
       subject: '理科',
     },
     {
-      value: '物理',
-      label: '物理',
-      icon: '⚛️',
-      description: '力・運動・エネルギー',
-      subject: '理科',
-    },
-    {
-      value: '化学',
-      label: '化学',
-      icon: '🧪',
-      description: '物質の性質と変化',
-      subject: '理科',
-    },
-    {
-      value: '地学',
-      label: '地学',
-      icon: '🌌',
-      description: '天気や宇宙のしくみ',
+      value: '電流・電圧と電気抵抗',
+      label: '電流・電圧と電気抵抗',
+      icon: '⚡',
+      description: '電気回路と電流の性質',
       subject: '理科',
     },
   ],
@@ -240,7 +226,7 @@ export function QuizSettings({ onStart, onShowStats, onLogout }: QuizSettingsPro
               </div>
 
               <div className={`grid gap-4 ${
-                selectedSubject === '社会' ? 'grid-cols-3' : 'grid-cols-4'
+                selectedSubject === '社会' ? 'grid-cols-3' : 'grid-cols-2'
               }`}>
                 {availableUnits.map((unit) => {
                   const isActive = selectedUnit === unit.value;
