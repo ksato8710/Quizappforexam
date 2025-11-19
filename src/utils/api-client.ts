@@ -84,6 +84,7 @@ export const apiClient = {
     unit?: string;
     difficulty?: number | null;
     count?: number;
+    historyFilter?: 'unanswered' | 'uncorrected';
   }): Promise<{ quizzes: Quiz[] }> => {
     let url = '/quizzes';
     if (params) {
@@ -102,12 +103,16 @@ export const apiClient = {
       if (params.count) {
         queryParams.append('count', params.count.toString());
       }
+      if (params.historyFilter) {
+        queryParams.append('historyFilter', params.historyFilter);
+      }
       const queryString = queryParams.toString();
       if (queryString) {
         url += `?${queryString}`;
       }
     }
-    return fetchAPI(url);
+    const requiresAuth = Boolean(params?.historyFilter);
+    return fetchAPI(url, {}, requiresAuth);
   },
 
   // Categories

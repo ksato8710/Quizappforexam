@@ -185,7 +185,7 @@ import { Button } from '@/components/ui/button';
 
 ### 重要な注意事項
 - `src/supabase/functions/server/`のファイルを編集した後は、必ず`supabase/functions/make-server-856c5cf0/`にコピーしてデプロイすること
-- アクセストークンは`SupabaseSecret.md`に保存され、`.gitignore`に追加されています
+- アクセストークンは`SupabaseSecret.md`に保存され、`.gitignore`に追加されています。運用手順は `SUPABASE_OPERATIONS.md`、クイズデータ追加の具体的な流れは `QUIZ_DATA_WORKFLOW.md` を参照してください。
 - 関数名は`make-server-856c5cf0`で固定（URLパスと一致）
 
 ## Vercelへのデプロイ

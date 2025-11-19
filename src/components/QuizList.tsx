@@ -29,6 +29,7 @@ export function QuizList({ onBack, onOpenSettings }: { onBack: () => void; onOpe
   const [subjectFilter, setSubjectFilter] = useState<string>('all')
   const [unitFilter, setUnitFilter] = useState<string>('all')
   const [difficultyFilter, setDifficultyFilter] = useState<string>('all')
+  const [historyFilter, setHistoryFilter] = useState<'all' | 'unanswered' | 'uncorrected'>('all')
   const [sortKey, setSortKey] = useState<'none'|'question'|'subject'|'unit'|'difficulty'|'answers'|'accuracy'|'order'>('none')
   const [sortOrder, setSortOrder] = useState<'asc'|'desc'>('desc')
 
@@ -72,6 +73,11 @@ export function QuizList({ onBack, onOpenSettings }: { onBack: () => void; onOpe
   const uniqueSubjects = Array.from(new Set(quizzes.map(q => q.subject).filter(Boolean))) as string[]
   const uniqueUnits = Array.from(new Set(quizzes.map(q => q.unit).filter(Boolean))) as string[]
   const uniqueDifficulties = Array.from(new Set(quizzes.map(q => q.difficulty).filter((v): v is number => v != null))).sort((a,b)=>a-b)
+  const historyFilterOptions: { value: 'all' | 'unanswered' | 'uncorrected'; label: string }[] = [
+    { value: 'all', label: '履歴フィルタなし' },
+    { value: 'unanswered', label: '未回答のみ' },
+    { value: 'uncorrected', label: '正解したことがない問題のみ' },
+  ]
 
   const prepared = quizzes.map((q, index) => {
     const s = statsByQuiz.get(q.id) || { answers: 0, correct: 0 }
@@ -79,10 +85,12 @@ export function QuizList({ onBack, onOpenSettings }: { onBack: () => void; onOpe
     return { q, s, accuracy, index }
   })
 
-  const filtered = prepared.filter(({ q }) => {
+  const filtered = prepared.filter(({ q, s }) => {
     if (subjectFilter !== 'all' && q.subject !== subjectFilter) return false
     if (unitFilter !== 'all' && q.unit !== unitFilter) return false
     if (difficultyFilter !== 'all' && String(q.difficulty ?? '') !== difficultyFilter) return false
+    if (historyFilter === 'unanswered' && (s.answers ?? 0) > 0) return false
+    if (historyFilter === 'uncorrected' && (s.correct ?? 0) > 0) return false
     return true
   })
 
@@ -306,6 +314,21 @@ export function QuizList({ onBack, onOpenSettings }: { onBack: () => void; onOpe
                 <option value="asc">昇順</option>
               </select>
             </label>
+            <label className="text-sm text-gray-700 flex flex-col">
+              <span className="mb-2 font-medium text-indigo-900">履歴フィルタ</span>
+              <select
+                aria-label="履歴フィルタ"
+                className="border-2 border-gray-200 rounded-lg px-3 py-2 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 transition-all"
+                value={historyFilter}
+                onChange={e=>setHistoryFilter(e.target.value as any)}
+              >
+                {historyFilterOptions.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </label>
           </div>
           <div className="mt-4 flex items-center justify-between">
             <p className="text-sm text-gray-600">
@@ -318,16 +341,17 @@ export function QuizList({ onBack, onOpenSettings }: { onBack: () => void; onOpe
             <Button
               variant="outline"
               size="sm"
-              onClick={() => {
-                setSubjectFilter('all');
-                setUnitFilter('all');
-                setDifficultyFilter('all');
-                setSortKey('none');
-                setSortOrder('desc');
-              }}
-            >
-              フィルタークリア
-            </Button>
+                onClick={() => {
+                  setSubjectFilter('all');
+                  setUnitFilter('all');
+                  setDifficultyFilter('all');
+                  setSortKey('none');
+                  setSortOrder('desc');
+                  setHistoryFilter('all');
+                }}
+              >
+                フィルタークリア
+              </Button>
           </div>
         </Card>
 
