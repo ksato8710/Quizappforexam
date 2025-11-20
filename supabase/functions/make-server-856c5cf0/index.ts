@@ -2,7 +2,7 @@ import { Hono } from "npm:hono";
 import { cors } from "npm:hono/cors";
 import { logger } from "npm:hono/logger";
 import { createClient } from "npm:@supabase/supabase-js@2";
-import * as kv from "./kv_store.ts";
+
 const app = new Hono();
 
 // Create Supabase client
@@ -31,55 +31,7 @@ app.get("/make-server-856c5cf0/health", (c) => {
   return c.json({ status: "ok" });
 });
 
-// Debug endpoint to check KV store
-app.get("/make-server-856c5cf0/debug/kv", async (c) => {
-  try {
-    const quizzes = await kv.getByPrefix('quiz:');
-    const users = await kv.getByPrefix('user:');
-    const stats = await kv.getByPrefix('stats:');
-    
-    return c.json({ 
-      quizzes: quizzes,
-      users: users.length,
-      stats: stats.length,
-    });
-  } catch (error) {
-    console.log(`Error in debug endpoint: ${error}`);
-    return c.json({ error: String(error) }, 500);
-  }
-});
-
-// Force initialize quizzes
-app.post("/make-server-856c5cf0/debug/init-quizzes", async (c) => {
-  try {
-    await initializeQuizzes();
-    const quizzes = await kv.getByPrefix('quiz:');
-    return c.json({ 
-      message: 'Quizzes initialized',
-      count: quizzes.length,
-      quizzes: quizzes
-    });
-  } catch (error) {
-    console.log(`Error initializing quizzes: ${error}`);
-    return c.json({ error: String(error) }, 500);
-  }
-});
-
-// Force initialize categories
-app.post("/make-server-856c5cf0/debug/init-categories", async (c) => {
-  try {
-    await initializeCategories();
-    const categories = await kv.getByPrefix('category:');
-    return c.json({ 
-      message: 'Categories initialized',
-      count: categories.length,
-      categories: categories
-    });
-  } catch (error) {
-    console.log(`Error initializing categories: ${error}`);
-    return c.json({ error: String(error) }, 500);
-  }
-});
+// Debug endpoints removed - KV store deprecated
 
 // ===== User Authentication Endpoints =====
 
@@ -92,19 +44,23 @@ app.post("/make-server-856c5cf0/login", async (c) => {
       return c.json({ error: 'Name and password are required' }, 400);
     }
 
-    // Find user by name in KV store
-    const allUsers = await kv.getByPrefix('user:');
-    const userRecord = allUsers.find(u => u.value?.name === name);
+    // Find user by name in RDB
+    const { data: userProfile, error: profileError } = await supabase
+      .from('profiles')
+      .select('id, name')
+      .eq('name', name)
+      .single();
 
-    if (!userRecord) {
+    if (profileError || !userProfile) {
       return c.json({ error: 'Invalid credentials' }, 401);
     }
 
-    const userProfile = userRecord.value;
+    // Generate email from name (same as signup)
+    const email = `${name}@quizapp.local`;
 
     // Sign in with Supabase Auth using email/password
     const { data, error } = await supabase.auth.signInWithPassword({
-      email: userProfile.email,
+      email: email,
       password: password,
     });
 
@@ -118,7 +74,7 @@ app.post("/make-server-856c5cf0/login", async (c) => {
       user: {
         id: userProfile.id,
         name: userProfile.name,
-        email: userProfile.email,
+        email: email,
       }
     });
   } catch (error) {
@@ -136,11 +92,14 @@ app.post("/make-server-856c5cf0/signup", async (c) => {
       return c.json({ error: 'Name and password are required' }, 400);
     }
 
-    // Check if user with this name already exists
-    const allUsers = await kv.getByPrefix('user:');
-    const existingUser = allUsers.find(u => u.value?.name === name);
+    // Check if user with this name already exists in RDB
+    const { data: existingProfile } = await supabase
+      .from('profiles')
+      .select('id')
+      .eq('name', name)
+      .single();
 
-    if (existingUser) {
+    if (existingProfile) {
       return c.json({ error: 'User with this name already exists' }, 400);
     }
 
@@ -161,20 +120,21 @@ app.post("/make-server-856c5cf0/signup", async (c) => {
       return c.json({ error: error.message }, 400);
     }
 
-    // Store user profile in KV store
-    await kv.set(`user:${data.user.id}`, {
-      id: data.user.id,
-      email,
-      name,
-      createdAt: new Date().toISOString(),
-    });
+    // Store user profile in RDB
+    const { error: profileError } = await supabase
+      .from('profiles')
+      .insert({
+        id: data.user.id,
+        name: name,
+        created_at: new Date().toISOString(),
+      });
 
-    // Initialize user stats
-    await kv.set(`stats:${data.user.id}`, {
-      totalQuizzes: 0,
-      totalCorrect: 0,
-      totalAnswers: 0,
-    });
+    if (profileError) {
+      console.error(`Error inserting profile into RDB: ${profileError.message}`);
+      return c.json({ error: 'Failed to create user profile' }, 500);
+    }
+
+    // Note: User stats are now calculated automatically via user_statistics_view
 
     return c.json({
       message: 'User created successfully',
@@ -191,20 +151,9 @@ app.post("/make-server-856c5cf0/signup", async (c) => {
 // Get all quizzes
 app.get("/make-server-856c5cf0/quizzes", async (c) => {
   try {
-    console.log('Fetching quizzes from KV store...');
-    const quizzes = await kv.getByPrefix('quiz:');
-    console.log('Quizzes from KV:', quizzes);
-    
-    // If no quizzes exist, initialize with default data
-    if (!quizzes || quizzes.length === 0) {
-      console.log('No quizzes found, initializing...');
-      await initializeQuizzes();
-      await initializeCategories();
-      const newQuizzes = await kv.getByPrefix('quiz:');
-      console.log('New quizzes after initialization:', newQuizzes);
-      return c.json({ quizzes: newQuizzes.map(q => q.value).filter(Boolean) });
-    }
+    console.log('Fetching quizzes from RDB...');
 
+    // Parse query parameters
     const url = new URL(c.req.url);
     const subjectFilter = url.searchParams.get('subject');
     const unitFilter = url.searchParams.get('unit');
@@ -212,9 +161,48 @@ app.get("/make-server-856c5cf0/quizzes", async (c) => {
     const countParam = url.searchParams.get('count');
     const historyFilter = url.searchParams.get('historyFilter');
 
-    let answeredSet: Set<string> | null = null;
-    let correctSet: Set<string> | null = null;
+    // Build query with filters
+    let query = supabase
+      .from('quizzes')
+      .select('*');
 
+    if (subjectFilter && subjectFilter !== 'all') {
+      query = query.eq('subject', subjectFilter);
+    }
+
+    if (unitFilter && unitFilter !== 'all') {
+      query = query.eq('unit', unitFilter);
+    }
+
+    if (difficultyParam && difficultyParam !== 'mix') {
+      const difficulty = parseInt(difficultyParam, 10);
+      if (!Number.isNaN(difficulty)) {
+        query = query.eq('difficulty', difficulty);
+      }
+    }
+
+    const { data: quizzes, error } = await query.order('order', { ascending: true });
+
+    if (error) {
+      console.log(`Error fetching quizzes: ${error}`);
+      return c.json({ error: 'Failed to fetch quizzes' }, 500);
+    }
+
+    // If no quizzes exist, initialize with default data
+    if (!quizzes || quizzes.length === 0) {
+      console.log('No quizzes found, initializing...');
+      await initializeQuizzes();
+      await initializeCategories();
+      const { data: newQuizzes } = await supabase
+        .from('quizzes')
+        .select('*')
+        .order('order', { ascending: true });
+      return c.json({ quizzes: newQuizzes || [] });
+    }
+
+    let filteredQuizzes = quizzes;
+
+    // Handle history filtering
     if (historyFilter === 'unanswered' || historyFilter === 'uncorrected') {
       const accessToken = c.req.header('Authorization')?.split(' ')[1];
       if (!accessToken) {
@@ -226,63 +214,41 @@ app.get("/make-server-856c5cf0/quizzes", async (c) => {
         return c.json({ error: 'Unauthorized' }, 401);
       }
 
-      const answerRecords = await kv.getByPrefix(`answer:${user.id}:`);
-      const answers = answerRecords
-        .map(record => record.value)
-        .filter((entry): entry is { quizId?: string; isCorrect?: boolean } => Boolean(entry));
+      // Get user answers from RDB
+      const { data: userAnswers } = await supabase
+        .from('user_answers')
+        .select('quiz_id, is_correct')
+        .eq('user_id', user.id);
 
-      answeredSet = new Set(
-        answers
-          .map(answer => answer.quizId)
-          .filter((quizId): quizId is string => Boolean(quizId))
+      const answeredSet = new Set((userAnswers || []).map(a => a.quiz_id));
+      const correctSet = new Set(
+        (userAnswers || []).filter(a => a.is_correct).map(a => a.quiz_id)
       );
 
-      correctSet = new Set(
-        answers
-          .filter(answer => answer.isCorrect)
-          .map(answer => answer.quizId)
-          .filter((quizId): quizId is string => Boolean(quizId))
-      );
-    }
+      if (historyFilter === 'unanswered') {
+        filteredQuizzes = filteredQuizzes.filter(quiz => !answeredSet.has(quiz.id));
+      }
 
-    // Filter out any null/undefined values and ensure all quizzes have required properties
-    let validQuizzes = quizzes
-      .map(q => q.value)
-      .filter(quiz => quiz && quiz.id && quiz.question && quiz.answer);
-
-    if (subjectFilter && subjectFilter !== 'all') {
-      validQuizzes = validQuizzes.filter(quiz => quiz.subject === subjectFilter);
-    }
-
-    if (unitFilter && unitFilter !== 'all') {
-      validQuizzes = validQuizzes.filter(quiz => quiz.unit === unitFilter);
-    }
-
-    if (difficultyParam && difficultyParam !== 'mix') {
-      const difficulty = parseInt(difficultyParam, 10);
-      if (!Number.isNaN(difficulty)) {
-        validQuizzes = validQuizzes.filter(quiz => quiz.difficulty === difficulty);
+      if (historyFilter === 'uncorrected') {
+        filteredQuizzes = filteredQuizzes.filter(quiz =>
+          answeredSet.has(quiz.id) && !correctSet.has(quiz.id)
+        );
       }
     }
 
-    if (historyFilter === 'unanswered' && answeredSet) {
-      validQuizzes = validQuizzes.filter(quiz => !answeredSet!.has(quiz.id));
-    }
-
-    if (historyFilter === 'uncorrected' && answeredSet && correctSet) {
-      validQuizzes = validQuizzes.filter(quiz => answeredSet!.has(quiz.id) && !correctSet!.has(quiz.id));
-    }
-
+    // Apply count limit with randomization
     if (countParam) {
       const count = parseInt(countParam, 10);
-      if (!Number.isNaN(count) && count > 0 && validQuizzes.length > count) {
-        // Shuffle array shallowly before slicing to avoid always taking the same quizzes
-        validQuizzes = [...validQuizzes].sort(() => Math.random() - 0.5).slice(0, count);
+      if (!Number.isNaN(count) && count > 0 && filteredQuizzes.length > count) {
+        // Shuffle and slice
+        filteredQuizzes = [...filteredQuizzes]
+          .sort(() => Math.random() - 0.5)
+          .slice(0, count);
       }
     }
 
-    console.log('Valid quizzes to return:', validQuizzes);
-    return c.json({ quizzes: validQuizzes });
+    console.log(`Returning ${filteredQuizzes.length} quizzes`);
+    return c.json({ quizzes: filteredQuizzes });
   } catch (error) {
     console.log(`Error fetching quizzes: ${error}`);
     return c.json({ error: 'Failed to fetch quizzes' }, 500);
@@ -293,15 +259,27 @@ app.get("/make-server-856c5cf0/quizzes", async (c) => {
 app.post("/make-server-856c5cf0/quizzes", async (c) => {
   try {
     const quiz = await c.req.json();
-    const quizId = `quiz:${Date.now()}`;
-    
-    await kv.set(quizId, {
-      id: quizId,
-      ...quiz,
-      createdAt: new Date().toISOString(),
-    });
 
-    return c.json({ message: 'Quiz created successfully', quizId });
+    // Write to RDB
+    const { data, error } = await supabase.from("quizzes").insert({
+      question: quiz.question,
+      answer: quiz.answer,
+      explanation: quiz.explanation,
+      type: quiz.type,
+      options: quiz.choices ? quiz.choices : null,
+      difficulty: quiz.difficulty,
+      subject: quiz.subject,
+      unit: quiz.unit,
+      category_id: quiz.categoryId,
+      order: quiz.order,
+    }).select().single();
+
+    if (error) {
+      console.error("Failed to write quiz to RDB:", error);
+      return c.json({ error: 'Failed to create quiz' }, 500);
+    }
+
+    return c.json({ message: 'Quiz created successfully', quizId: data.id });
   } catch (error) {
     console.log(`Error creating quiz: ${error}`);
     return c.json({ error: 'Failed to create quiz' }, 500);
@@ -311,20 +289,28 @@ app.post("/make-server-856c5cf0/quizzes", async (c) => {
 // Get all categories
 app.get("/make-server-856c5cf0/categories", async (c) => {
   try {
-    const categories = await kv.getByPrefix('category:');
-    
+    // Fetch categories from RDB
+    const { data: categories, error } = await supabase
+      .from('categories')
+      .select('*')
+      .order('order', { ascending: true });
+
+    if (error) {
+      console.log(`Error fetching categories: ${error}`);
+      return c.json({ error: 'Failed to fetch categories' }, 500);
+    }
+
     // If no categories exist, initialize them
     if (!categories || categories.length === 0) {
       await initializeCategories();
-      const newCategories = await kv.getByPrefix('category:');
-      return c.json({ categories: newCategories.map(cat => cat.value).filter(Boolean) });
+      const { data: newCategories } = await supabase
+        .from('categories')
+        .select('*')
+        .order('order', { ascending: true });
+      return c.json({ categories: newCategories || [] });
     }
 
-    const validCategories = categories
-      .map(cat => cat.value)
-      .filter(category => category && category.id && category.name);
-
-    return c.json({ categories: validCategories });
+    return c.json({ categories });
   } catch (error) {
     console.log(`Error fetching categories: ${error}`);
     return c.json({ error: 'Failed to fetch categories' }, 500);
@@ -349,26 +335,23 @@ app.post("/make-server-856c5cf0/answers", async (c) => {
       return c.json({ error: 'quizId, userAnswer, and isCorrect are required' }, 400);
     }
 
-    // Save answer
-    const answerId = `answer:${user.id}:${quizId}:${Date.now()}`;
-    await kv.set(answerId, {
-      userId: user.id,
-      quizId,
-      userAnswer,
-      isCorrect,
-      answeredAt: new Date().toISOString(),
-    });
+    // Save answer in RDB
+    const { error: answerError } = await supabase
+      .from('user_answers')
+      .insert({
+        user_id: user.id,
+        quiz_id: quizId,
+        user_answer: userAnswer,
+        is_correct: isCorrect,
+        answered_at: new Date().toISOString(),
+      });
 
-    // Update user stats
-    const statsKey = `stats:${user.id}`;
-    const stats = await kv.get(statsKey) || { totalQuizzes: 0, totalCorrect: 0, totalAnswers: 0 };
-    
-    stats.totalAnswers = (stats.totalAnswers || 0) + 1;
-    if (isCorrect) {
-      stats.totalCorrect = (stats.totalCorrect || 0) + 1;
+    if (answerError) {
+      console.error(`Error inserting answer into RDB: ${answerError.message}`);
+      return c.json({ error: 'Failed to save answer' }, 500);
     }
 
-    await kv.set(statsKey, stats);
+    // Note: User stats are now calculated automatically via user_statistics_view
 
     return c.json({ message: 'Answer saved successfully' });
   } catch (error) {
@@ -382,20 +365,13 @@ app.post("/make-server-856c5cf0/complete-quiz", async (c) => {
   try {
     const accessToken = c.req.header('Authorization')?.split(' ')[1];
     const { data: { user }, error: authError } = await supabase.auth.getUser(accessToken);
-    
+
     if (!user || authError) {
       return c.json({ error: 'Unauthorized' }, 401);
     }
 
-    const { correctCount, totalQuestions } = await c.req.json();
-
-    // Update user stats
-    const statsKey = `stats:${user.id}`;
-    const stats = await kv.get(statsKey) || { totalQuizzes: 0, totalCorrect: 0, totalAnswers: 0 };
-    
-    stats.totalQuizzes = (stats.totalQuizzes || 0) + 1;
-
-    await kv.set(statsKey, stats);
+    // Note: User stats are now calculated automatically via user_statistics_view
+    // This endpoint is kept for backward compatibility but no longer updates stats
 
     return c.json({ message: 'Quiz session completed' });
   } catch (error) {
@@ -409,17 +385,36 @@ app.get("/make-server-856c5cf0/stats", async (c) => {
   try {
     const accessToken = c.req.header('Authorization')?.split(' ')[1];
     const { data: { user }, error: authError } = await supabase.auth.getUser(accessToken);
-    
+
     if (!user || authError) {
       return c.json({ error: 'Unauthorized' }, 401);
     }
 
-    const stats = await kv.get(`stats:${user.id}`) || { totalQuizzes: 0, totalCorrect: 0, totalAnswers: 0 };
-    const userProfile = await kv.get(`user:${user.id}`);
+    // Get stats from user_statistics_view
+    const { data: statsData } = await supabase
+      .from('user_statistics_view')
+      .select('total_answers, total_correct')
+      .eq('user_id', user.id)
+      .single();
 
-    return c.json({ 
+    // Get user profile from profiles table
+    const { data: userProfile } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', user.id)
+      .single();
+
+    // Calculate totalQuizzes (sessions) - for now, we don't track this separately
+    // so we use total_answers as a proxy
+    const stats = {
+      totalQuizzes: statsData?.total_answers || 0,
+      totalCorrect: statsData?.total_correct || 0,
+      totalAnswers: statsData?.total_answers || 0,
+    };
+
+    return c.json({
       stats,
-      user: userProfile 
+      user: userProfile
     });
   } catch (error) {
     console.log(`Error fetching stats: ${error}`);
@@ -432,18 +427,47 @@ app.get("/make-server-856c5cf0/history", async (c) => {
   try {
     const accessToken = c.req.header('Authorization')?.split(' ')[1];
     const { data: { user }, error: authError } = await supabase.auth.getUser(accessToken);
-    
+
     if (!user || authError) {
       return c.json({ error: 'Unauthorized' }, 401);
     }
 
-    const answers = await kv.getByPrefix(`answer:${user.id}:`);
-    
-    return c.json({ 
-      history: answers.map(a => a.value).sort((a, b) => 
-        new Date(b.answeredAt).getTime() - new Date(a.answeredAt).getTime()
-      )
-    });
+    // Get answer history from RDB with quiz details
+    const { data: answers, error } = await supabase
+      .from('user_answers')
+      .select(`
+        id,
+        user_answer,
+        is_correct,
+        answered_at,
+        quizzes (
+          id,
+          question,
+          answer,
+          explanation
+        )
+      `)
+      .eq('user_id', user.id)
+      .order('answered_at', { ascending: false });
+
+    if (error) {
+      console.log(`Error fetching history: ${error}`);
+      return c.json({ error: 'Failed to fetch history' }, 500);
+    }
+
+    // Transform to match expected format
+    const history = (answers || []).map(a => ({
+      userId: user.id,
+      quizId: a.quizzes?.id,
+      userAnswer: a.user_answer,
+      isCorrect: a.is_correct,
+      answeredAt: a.answered_at,
+      question: a.quizzes?.question,
+      correctAnswer: a.quizzes?.answer,
+      explanation: a.quizzes?.explanation,
+    }));
+
+    return c.json({ history });
   } catch (error) {
     console.log(`Error fetching history: ${error}`);
     return c.json({ error: 'Failed to fetch history' }, 500);
@@ -1254,10 +1278,27 @@ async function initializeQuizzes() {
     },
   ];
 
+  // Write to RDB
+  const supabase = createClient(
+    Deno.env.get("SUPABASE_URL")!,
+    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
+  );
+
   for (const quiz of defaultQuizzes) {
-    await kv.set(quiz.id, quiz);
+    await supabase.from("quizzes").insert({
+      question: quiz.question,
+      answer: quiz.answer,
+      explanation: quiz.explanation,
+      type: quiz.type,
+      options: quiz.choices ? quiz.choices : null,
+      difficulty: quiz.difficulty,
+      subject: quiz.subject,
+      unit: quiz.unit,
+      category_id: quiz.categoryId,
+      order: quiz.order,
+    });
   }
-  
+
   console.log('Quizzes initialized successfully');
 }
 
@@ -1277,10 +1318,19 @@ async function initializeCategories() {
     { id: 'category:12', name: '公民・時事（国際社会・現代の問題）', order: 12 },
   ];
 
+  // Write to RDB
+  const supabase = createClient(
+    Deno.env.get("SUPABASE_URL")!,
+    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
+  );
+
   for (const category of categories) {
-    await kv.set(category.id, category);
+    await supabase.from("categories").insert({
+      name: category.name,
+      order: category.order,
+    });
   }
-  
+
   console.log('Categories initialized successfully');
 }
 

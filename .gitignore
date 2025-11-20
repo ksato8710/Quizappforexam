@@ -35,3 +35,6 @@ src/supabase/.temp
 # OS
 .DS_Store
 Thumbs.db
+
+# Supabase project info
+src/utils/supabase/info.tsx
