@@ -225,9 +225,12 @@ export function QuizSettings({ onStart, onShowStats, onLogout }: QuizSettingsPro
                 <h3 className="text-indigo-900 text-lg font-semibold">単元を選択</h3>
               </div>
 
-              <div className={`grid gap-4 ${
-                selectedSubject === '社会' ? 'grid-cols-3' : 'grid-cols-2'
-              }`}>
+              <div 
+                className="grid gap-4"
+                style={{
+                  gridTemplateColumns: selectedSubject === '社会' ? 'repeat(3, minmax(0, 1fr))' : 'repeat(2, minmax(0, 1fr))'
+                }}
+              >
                 {availableUnits.map((unit) => {
                   const isActive = selectedUnit === unit.value;
                   return (
@@ -342,7 +345,7 @@ export function QuizSettings({ onStart, onShowStats, onLogout }: QuizSettingsPro
                 value={selectedSoundEffect}
                 onValueChange={(value) => {
                   setSelectedSoundEffect(value);
-                  playSoundEffect(value);
+                  void playSoundEffect(value);
                 }}
               >
                 <SelectTrigger className="w-full h-12 rounded-lg border-2 border-gray-200 px-3 text-left text-gray-800 font-medium focus-visible:ring-2 focus-visible:ring-indigo-200 focus-visible:border-indigo-500">

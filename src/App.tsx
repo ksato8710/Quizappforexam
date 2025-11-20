@@ -170,7 +170,7 @@ export default function App() {
     setIsCorrect(correct);
     if (correct) {
       setCorrectCount(correctCount + 1);
-      playSoundEffect(soundEffectId);
+      void playSoundEffect(soundEffectId);
     }
     setShowAnswer(true);
 

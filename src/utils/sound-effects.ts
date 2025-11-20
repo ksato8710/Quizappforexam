@@ -29,21 +29,47 @@ const getAudioContext = (): AudioContext | null => {
     return null;
   }
 
+  if (sharedAudioContext?.state === 'closed') {
+    sharedAudioContext = null;
+  }
+
   if (!sharedAudioContext) {
-    sharedAudioContext = new AudioCtx();
+    try {
+      sharedAudioContext = new AudioCtx();
+    } catch (error) {
+      console.error('Failed to initialize AudioContext:', error);
+      return null;
+    }
   }
 
   return sharedAudioContext;
 };
 
-export const playSoundEffect = (effectId?: string) => {
-  const ctx = getAudioContext();
+export const playSoundEffect = async (effectId?: string): Promise<void> => {
+  let ctx = getAudioContext();
   if (!ctx) {
     return;
   }
 
+  if (ctx.state === 'closed') {
+    sharedAudioContext = null;
+    ctx = getAudioContext();
+    if (!ctx) {
+      return;
+    }
+  }
+
   if (ctx.state === 'suspended') {
-    void ctx.resume().catch(() => {});
+    try {
+      await ctx.resume();
+    } catch (error) {
+      console.warn('AudioContext resume failed:', error);
+      return;
+    }
+
+    if (ctx.state !== 'running') {
+      return;
+    }
   }
 
   // Duolingo風効果音の専用関数を呼び出し
