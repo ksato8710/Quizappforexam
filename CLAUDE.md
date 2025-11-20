@@ -56,10 +56,12 @@ npm build
   - `src/utils/supabase/info.tsx`から認証情報を読み込み
 
 - **バックエンドサーバー** (`src/supabase/functions/server/index.tsx`): Honoベースのエッジ関数（Denoランタイム）
-  - クイズデータ、ユーザープロファイル、統計のためのKVストア
+  - PostgreSQLデータベースを使用したデータ永続化
   - すべてのルートに`/make-server-856c5cf0`のプレフィックス
   - クロスオリジンリクエストのためのCORS有効化
   - ユーザー管理にSupabase Admin APIを使用
+  - テーブル構成: profiles, categories, quizzes, user_answers
+  - ビュー: user_statistics_view（ユーザー統計の自動集計）
 
 #### 回答検証ロジック
 `App.tsx:139-152`に配置されている回答チェックアルゴリズム:
@@ -81,25 +83,43 @@ import { Button } from '@/components/ui/button';
 
 ### データモデル
 
-**Quizインターフェース:**
-```typescript
-{
-  id: string;
-  question: string;
-  answer: string;
-  explanation: string;
-  type: 'text' | 'multiple-choice';
-  choices?: string[];
-  difficulty?: number;
-  categoryId?: string;
-  order?: number;  // クイズの順序付けに使用
-}
-```
+**データベーススキーマ:**
 
-**ユーザー統計:**
-- `totalQuizzes`: 完了したクイズセッションの数
-- `totalCorrect`: 全セッションでの正解数
-- `totalAnswers`: 送信した回答の総数
+- **profiles** - ユーザープロファイル
+  - `id` (uuid): auth.usersと紐付くユーザーID
+  - `name` (text): ユーザー名（一意）
+  - `created_at` (timestamp): 作成日時
+
+- **categories** - クイズカテゴリ
+  - `id` (uuid): カテゴリID
+  - `name` (text): カテゴリ名
+  - `order` (integer): 表示順
+
+- **quizzes** - クイズデータ
+  - `id` (uuid): クイズID
+  - `question` (text): 問題文
+  - `answer` (text): 正解
+  - `explanation` (text): 解説
+  - `type` (text): 'text' または 'multiple-choice'
+  - `options` (jsonb): 選択肢（multiple-choiceの場合）
+  - `difficulty` (integer): 難易度
+  - `subject` (text): 科目（理科、社会など）
+  - `unit` (text): 単元
+  - `category_id` (uuid): カテゴリへの外部キー
+  - `order` (integer): 表示順
+
+- **user_answers** - 回答履歴
+  - `id` (uuid): 回答ID
+  - `user_id` (uuid): ユーザーID（外部キー）
+  - `quiz_id` (uuid): クイズID（外部キー）
+  - `user_answer` (text): ユーザーの回答
+  - `is_correct` (boolean): 正誤
+  - `answered_at` (timestamp): 回答日時
+
+- **user_statistics_view** - ユーザー統計（ビュー）
+  - `user_id` (uuid): ユーザーID
+  - `total_answers` (bigint): 総回答数
+  - `total_correct` (bigint): 正解数
 
 ## バックエンドAPIエンドポイント
 
@@ -116,17 +136,19 @@ import { Button } from '@/components/ui/button';
 - `GET /stats` - ユーザー統計とプロファイルを取得
 - `GET /history` - ユーザーの回答履歴を取得
 
-**デバッグエンドポイント:**
-- `GET /health` - ヘルスチェック
-- `GET /debug/kv` - KVストアの内容を検査
-- `POST /debug/init-quizzes` - クイズを強制的に再初期化
-- `POST /debug/init-categories` - カテゴリを強制的に再初期化
+**その他のエンドポイント:**
+- `GET /health` - ヘルスチェック（認証不要）
 
 ## 認証フロー
 
 1. ユーザーが`Auth.tsx`で認証情報を入力
-2. サインアップの場合: APIがSupabase Admin SDKを介してユーザーを作成し、プロファイルをKVに保存
-3. ログインの場合: Supabase Authが認証情報を検証
+2. サインアップの場合:
+   - APIがSupabase Admin SDKを介してauth.usersテーブルにユーザーを作成
+   - プロファイル情報をprofilesテーブルに保存
+   - メールアドレスは `{username}@quizapp.test` 形式で自動生成
+3. ログインの場合:
+   - ユーザー名からメールアドレスを生成
+   - Supabase Authが認証情報を検証
 4. アクセストークンが`localStorage`に'accessToken'として保存
 5. トークンが認証済みAPIコールのAuthorizationヘッダーに含まれる
 6. アプリのマウント時に`App.tsx:checkAuth()`でトークンがチェックされる
@@ -156,28 +178,21 @@ import { Button } from '@/components/ui/button';
    # 標準構造にファイルをコピー
    mkdir -p supabase/functions/make-server-856c5cf0
    cp src/supabase/functions/server/index.tsx supabase/functions/make-server-856c5cf0/index.ts
-   cp src/supabase/functions/server/kv_store.tsx supabase/functions/make-server-856c5cf0/kv_store.ts
    ```
 
-2. **インポートパスの修正**
-   `supabase/functions/make-server-856c5cf0/index.ts`内で:
-   ```typescript
-   import * as kv from "./kv_store.ts";  // .tsx から .ts に変更
-   ```
-
-3. **プロジェクトをリンク**
+2. **プロジェクトをリンク**
    ```bash
    SUPABASE_ACCESS_TOKEN=$(grep "Access Tokens" SupabaseSecret.md | cut -d: -f2 | tr -d ' ') \
    supabase link --project-ref gwaekeqhrihbhhiezupg
    ```
 
-4. **関数をデプロイ**
+3. **関数をデプロイ**
    ```bash
    SUPABASE_ACCESS_TOKEN=$(grep "Access Tokens" SupabaseSecret.md | cut -d: -f2 | tr -d ' ') \
    supabase functions deploy make-server-856c5cf0
    ```
 
-5. **デプロイの確認**
+4. **デプロイの確認**
    ```bash
    curl -H "Authorization: Bearer $(grep "Publishable key" SupabaseSecret.md | cut -d: -f2 | tr -d ' ')" \
    https://gwaekeqhrihbhhiezupg.supabase.co/functions/v1/make-server-856c5cf0/quizzes
