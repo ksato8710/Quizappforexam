@@ -56,7 +56,7 @@ app.post("/make-server-856c5cf0/login", async (c) => {
     }
 
     // Generate email from name (same as signup)
-    const email = `${name}@quizapp.local`;
+    const email = `${name}@quizapp.test`;
 
     // Sign in with Supabase Auth using email/password
     const { data, error } = await supabase.auth.signInWithPassword({
@@ -104,7 +104,7 @@ app.post("/make-server-856c5cf0/signup", async (c) => {
     }
 
     // Generate a unique email from the name
-    const email = `${name.toLowerCase().replace(/\s+/g, '')}@quizapp.local`;
+    const email = `${name.toLowerCase().replace(/\s+/g, '')}@quizapp.test`;
 
     // Create user in Supabase Auth
     const { data, error } = await supabase.auth.admin.createUser({
