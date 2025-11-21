@@ -624,6 +624,7 @@ app.get("/make-server-856c5cf0/history", async (c) => {
 
     // Transform to match expected format
     const history = (answers || []).map(a => ({
+      id: a.id,
       userId: user.id,
       quizId: a.quizzes?.id,
       userAnswer: a.user_answer,
@@ -638,6 +639,42 @@ app.get("/make-server-856c5cf0/history", async (c) => {
   } catch (error) {
     console.log(`Error fetching history: ${error}`);
     return c.json({ error: 'Failed to fetch history' }, 500);
+  }
+});
+
+// Delete an answer from history
+app.delete("/make-server-856c5cf0/history/:id", async (c) => {
+  try {
+    const accessToken = c.req.header('Authorization')?.split(' ')[1];
+    console.log('Delete request - token exists:', !!accessToken);
+
+    const { data: { user }, error: authError } = await supabase.auth.getUser(accessToken);
+
+    if (!user || authError) {
+      console.log('Delete auth error:', authError);
+      return c.json({ error: 'Unauthorized' }, 401);
+    }
+
+    const answerId = c.req.param('id');
+    console.log('Deleting answer:', answerId, 'for user:', user.id);
+
+    // Delete the answer (RLS policy ensures user can only delete their own answers)
+    const { error } = await supabase
+      .from('user_answers')
+      .delete()
+      .eq('id', answerId)
+      .eq('user_id', user.id);
+
+    if (error) {
+      console.log(`Error deleting answer: ${error}`);
+      return c.json({ error: 'Failed to delete answer' }, 500);
+    }
+
+    console.log('Answer deleted successfully');
+    return c.json({ success: true });
+  } catch (error) {
+    console.log(`Error deleting answer: ${error}`);
+    return c.json({ error: 'Failed to delete answer' }, 500);
   }
 });
 

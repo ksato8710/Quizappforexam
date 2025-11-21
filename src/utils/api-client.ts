@@ -170,4 +170,8 @@ export const apiClient = {
   getHistory: async () => {
     return fetchAPI('/history', {}, true);
   },
+
+  deleteAnswer: async (answerId: string): Promise<{ success: boolean }> => {
+    return fetchAPI(`/history/${answerId}`, { method: 'DELETE' }, true);
+  },
 };

@@ -3,6 +3,7 @@ import { QuizCard } from './components/QuizCard';
 import { QuizSettings, QuizConfig } from './components/QuizSettings';
 import { Auth } from './components/Auth';
 import { QuizList } from './components/QuizList';
+import { AnswerHistory } from './components/AnswerHistory';
 import { Button } from './components/ui/button';
 import { Card } from './components/ui/card';
 import { BookOpen, RotateCcw, LogOut, BarChart3, Settings } from 'lucide-react';
@@ -25,6 +26,7 @@ export default function App() {
   const [loading, setLoading] = useState(true);
   const [showStats, setShowStats] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  const [showAnswerHistory, setShowAnswerHistory] = useState(false);
   const [stats, setStats] = useState({ totalQuizzes: 0, totalCorrect: 0, totalAnswers: 0 });
   const [quizConfig, setQuizConfig] = useState<QuizConfig | null>(null);
   const [soundEffectId, setSoundEffectId] = useState<string>(DEFAULT_SOUND_EFFECT_ID);
@@ -248,21 +250,42 @@ export default function App() {
       onLogout={handleLogout}
     />;
   }
+  if (showAnswerHistory) {
+    return (
+      <AnswerHistory
+        onBack={() => {
+          setShowAnswerHistory(false);
+          setShowStats(true);
+        }}
+      />
+    );
+  }
   if (showStats) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 py-8 px-4">
         <div className="max-w-3xl mx-auto">
           <div className="flex flex-wrap items-center justify-between gap-4 mb-8">
             <h1 className="text-indigo-900">あなたの統計</h1>
-            <Button
-              onClick={() => {
-                setShowStats(false);
-                setShowSettings(true);
-              }}
-              variant="outline"
-            >
-              戻る
-            </Button>
+            <div className="flex gap-2">
+              <Button
+                onClick={() => {
+                  setShowStats(false);
+                  setShowAnswerHistory(true);
+                }}
+                variant="outline"
+              >
+                これまでした回答
+              </Button>
+              <Button
+                onClick={() => {
+                  setShowStats(false);
+                  setShowSettings(true);
+                }}
+                variant="outline"
+              >
+                戻る
+              </Button>
+            </div>
           </div>
 
           <div className="grid gap-4 md:grid-cols-3 mb-6">
