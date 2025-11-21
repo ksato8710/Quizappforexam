@@ -196,7 +196,7 @@ app.get("/make-server-856c5cf0/quizzes", async (c) => {
 
     let query = supabase
       .from('quizzes')
-      .select('*');
+      .select('*, units(name)');
 
     if (subjectFilter && subjectFilter !== 'all') {
       query = query.eq('subject', subjectFilter);
@@ -213,12 +213,19 @@ app.get("/make-server-856c5cf0/quizzes", async (c) => {
       }
     }
 
-    const { data: quizzes, error } = await query.order('order', { ascending: true });
+    const { data: rawQuizzes, error } = await query.order('order', { ascending: true });
 
     if (error) {
       console.log(`Error fetching quizzes: ${error}`);
       return c.json({ error: 'Failed to fetch quizzes' }, 500);
     }
+
+    // Transform the response to flatten unit name
+    const quizzes = (rawQuizzes || []).map((q: any) => ({
+      ...q,
+      unit: q.units?.name || null,
+      units: undefined,
+    }));
 
     // If no quizzes exist, initialize with default data
     if (!quizzes || quizzes.length === 0) {

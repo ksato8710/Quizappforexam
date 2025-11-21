@@ -38,6 +38,7 @@ export function QuizList({ onBack, onOpenSettings, layout = 'full' }: QuizListPr
   const [historyFilter, setHistoryFilter] = useState<'all' | 'unanswered' | 'uncorrected'>('all')
   const [sortKey, setSortKey] = useState<'none' | 'question' | 'subject' | 'unit' | 'difficulty' | 'answers' | 'accuracy' | 'order'>('none')
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc')
+  const [availableUnits, setAvailableUnits] = useState<string[]>([])
 
   useEffect(() => {
     let isMounted = true
@@ -63,6 +64,28 @@ export function QuizList({ onBack, onOpenSettings, layout = 'full' }: QuizListPr
     }
   }, [])
 
+  // Fetch units when subject filter changes
+  useEffect(() => {
+    if (subjectFilter === 'all') {
+      setAvailableUnits([])
+      setUnitFilter('all')
+      return
+    }
+
+    const fetchUnits = async () => {
+      try {
+        const { units } = await apiClient.getUnits({ subject: subjectFilter })
+        setAvailableUnits(units.map((u) => u.name))
+        setUnitFilter('all')
+      } catch (error) {
+        console.error('Failed to fetch units:', error)
+        setAvailableUnits([])
+      }
+    }
+
+    void fetchUnits()
+  }, [subjectFilter])
+
   const statsByQuiz = useMemo(() => {
     const map = new Map<string, { answers: number; correct: number }>()
     for (const h of history) {
@@ -79,7 +102,6 @@ export function QuizList({ onBack, onOpenSettings, layout = 'full' }: QuizListPr
   }, [history])
 
   const uniqueSubjects = Array.from(new Set(quizzes.map((q) => q.subject).filter(Boolean))) as string[]
-  const uniqueUnits = Array.from(new Set(quizzes.map((q) => q.unit).filter(Boolean))) as string[]
   const uniqueDifficulties = Array.from(
     new Set(quizzes.map((q) => q.difficulty).filter((v): v is number => v != null)),
   ).sort((a, b) => a - b)
@@ -307,12 +329,17 @@ export function QuizList({ onBack, onOpenSettings, layout = 'full' }: QuizListPr
           <span className="mb-2 font-medium text-indigo-900">単元</span>
           <select
             aria-label="単元"
-            className="border-2 border-gray-200 rounded-lg px-3 py-2 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 transition-all"
+            className={`border-2 rounded-lg px-3 py-2 transition-all ${
+              subjectFilter === 'all'
+                ? 'border-gray-200 bg-gray-100 text-gray-400 cursor-not-allowed'
+                : 'border-gray-200 bg-white focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200'
+            }`}
             value={unitFilter}
             onChange={(e) => setUnitFilter(e.target.value)}
+            disabled={subjectFilter === 'all'}
           >
-            <option value="all">すべて</option>
-            {uniqueUnits.map((unit) => (
+            <option value="all">{subjectFilter === 'all' ? '教科を選択してください' : 'すべて'}</option>
+            {availableUnits.map((unit) => (
               <option key={unit} value={unit}>
                 {unit}
               </option>
@@ -328,11 +355,19 @@ export function QuizList({ onBack, onOpenSettings, layout = 'full' }: QuizListPr
             onChange={(e) => setDifficultyFilter(e.target.value)}
           >
             <option value="all">すべて</option>
-            {uniqueDifficulties.map((difficulty) => (
-              <option key={difficulty} value={String(difficulty)}>
-                Lv.{difficulty}
-              </option>
-            ))}
+            {uniqueDifficulties.map((difficulty) => {
+              const labels: Record<number, string> = {
+                2: 'やさしい',
+                3: 'ふつう',
+                4: 'むずかしい',
+                5: 'とてもむずかしい',
+              }
+              return (
+                <option key={difficulty} value={String(difficulty)}>
+                  {labels[difficulty] || `Lv.${difficulty}`}
+                </option>
+              )
+            })}
           </select>
         </label>
         <label className="text-sm text-gray-700 flex flex-col">
@@ -432,7 +467,7 @@ export function QuizList({ onBack, onOpenSettings, layout = 'full' }: QuizListPr
                   const configs = {
                     2: { stars: '⭐', label: 'やさしい', bg: 'bg-green-100', text: 'text-green-700' },
                     3: { stars: '⭐⭐', label: 'ふつう', bg: 'bg-blue-100', text: 'text-blue-700' },
-                    4: { stars: '⭐⭐⭐', label: 'むずかしい', bg: 'bg-yellow-100', text: 'text-yellow-700' },
+                    4: { stars: '⭐⭐⭐', label: 'むずかしい', bg: 'bg-orange-100', text: 'text-orange-700' },
                     5: { stars: '⭐⭐⭐⭐', label: 'とてもむずかしい', bg: 'bg-red-100', text: 'text-red-700' },
                   }
                   const config =
