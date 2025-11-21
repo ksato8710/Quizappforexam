@@ -294,7 +294,7 @@ export default function App() {
             </div>
           </div>
 
-          <div className="mt-12 space-y-4">
+          <div className="mt-6 space-y-4">
             <QuizList layout="embedded" />
           </div>
         </div>

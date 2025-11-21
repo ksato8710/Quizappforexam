@@ -456,20 +456,20 @@ export function QuizList({ onBack, onOpenSettings, layout = 'full' }: QuizListPr
                     className="cursor-pointer hover:bg-indigo-50 transition-colors border-b border-gray-100"
                     onClick={() => setSelected(q)}
                   >
-                    <TableCell className="w-[23%] min-w-[170px] px-4 py-5 whitespace-normal">
+                    <TableCell className="w-[23%] min-w-[170px] px-4 py-6 whitespace-normal">
                       <div className="text-gray-900 leading-relaxed break-words">{q.question}</div>
                     </TableCell>
-                    <TableCell className="w-[12%] min-w-[110px] px-4 py-5">{getDifficultyBadge(q.difficulty)}</TableCell>
-                    <TableCell className="w-[15%] min-w-[110px] px-4 py-5 whitespace-normal">
+                    <TableCell className="w-[12%] min-w-[110px] px-4 py-6">{getDifficultyBadge(q.difficulty)}</TableCell>
+                    <TableCell className="w-[15%] min-w-[110px] px-4 py-6 whitespace-normal">
                       <span className="text-gray-700 break-words">{q.subject ?? <span className="text-gray-400">-</span>}</span>
                     </TableCell>
-                    <TableCell className="w-[32%] min-w-[240px] px-4 py-5 whitespace-normal">
+                    <TableCell className="w-[32%] min-w-[240px] px-4 py-6 whitespace-normal">
                       <span className="text-gray-700 break-words">{q.unit ?? <span className="text-gray-400">-</span>}</span>
                     </TableCell>
-                    <TableCell className="w-[9%] min-w-[80px] px-4 py-5 text-center whitespace-nowrap">
+                    <TableCell className="w-[9%] min-w-[80px] px-4 py-6 text-center whitespace-nowrap">
                       <span className="text-gray-700 font-medium">{s?.answers ?? 0}回</span>
                     </TableCell>
-                    <TableCell className="w-[9%] min-w-[80px] px-4 py-5 text-center whitespace-nowrap">
+                    <TableCell className="w-[9%] min-w-[80px] px-4 py-6 text-center whitespace-nowrap">
                       <span className={getAccuracyColor(accuracy, s?.answers ?? 0)}>{s?.answers ? `${accuracy}%` : '-'}</span>
                     </TableCell>
                   </TableRow>
@@ -490,7 +490,7 @@ export function QuizList({ onBack, onOpenSettings, layout = 'full' }: QuizListPr
   )
 
   if (isEmbedded) {
-    return <div className="space-y-6">{combinedContent}</div>
+    return <div className="space-y-4">{combinedContent}</div>
   }
 
   return (
