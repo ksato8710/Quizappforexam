@@ -21,6 +21,12 @@ export interface Category {
   order: number;
 }
 
+export interface Unit {
+  id: string;
+  subject: string;
+  name: string;
+}
+
 export interface UserStats {
   totalQuizzes: number;
   totalCorrect: number;
@@ -118,6 +124,27 @@ export const apiClient = {
   // Categories
   getCategories: async (): Promise<{ categories: Category[] }> => {
     return fetchAPI('/categories');
+  },
+
+  // Units
+  getUnits: async (params?: { subject?: string }): Promise<{ units: Unit[] }> => {
+    let url = '/units';
+    if (params?.subject) {
+      const queryParams = new URLSearchParams();
+      queryParams.append('subject', params.subject);
+      url += `?${queryParams.toString()}`;
+    }
+    return fetchAPI(url);
+  },
+
+  // Quiz counts
+  getQuizCounts: async (params: { subject: string; unit?: string }): Promise<{ total: number; unanswered: number; uncorrected: number }> => {
+    const queryParams = new URLSearchParams();
+    queryParams.append('subject', params.subject);
+    if (params.unit) {
+      queryParams.append('unit', params.unit);
+    }
+    return fetchAPI(`/quiz-counts?${queryParams.toString()}`, {}, true);
   },
 
   // Answers

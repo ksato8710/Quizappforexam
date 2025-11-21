@@ -14,9 +14,21 @@ interface QuizCardProps {
   setUserAnswer: (answer: string) => void;
   isCorrect: boolean | null;
   categoryName?: string;
+  questionNumber?: number;
 }
 
-export function QuizCard({ quiz, showAnswer, onShowAnswer, onNext, isLastQuiz, userAnswer, setUserAnswer, isCorrect, categoryName }: QuizCardProps) {
+export function QuizCard({
+  quiz,
+  showAnswer,
+  onShowAnswer,
+  onNext,
+  isLastQuiz,
+  userAnswer,
+  setUserAnswer,
+  isCorrect,
+  categoryName,
+  questionNumber,
+}: QuizCardProps) {
   const handleChoiceClick = (choice: string) => {
     if (!showAnswer) {
       // Extract the choice letter (ア, イ, ウ, エ)
@@ -51,7 +63,7 @@ export function QuizCard({ quiz, showAnswer, onShowAnswer, onNext, isLastQuiz, u
         {/* Question Number and Metadata */}
         <div className="flex flex-wrap items-center gap-2 mb-6">
           <div className="inline-block bg-gradient-to-r from-blue-500 to-indigo-600 text-white px-4 py-1 rounded-full">
-            問{quiz.id}
+            問{questionNumber != null ? questionNumber : quiz.id}
           </div>
           {quiz.difficulty && (
             <div className={`inline-block px-3 py-1 rounded-full border text-sm ${getDifficultyColor(quiz.difficulty)}`}>

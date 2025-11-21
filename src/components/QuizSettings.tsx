@@ -1,10 +1,11 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { Card } from './ui/card';
 import { Button } from './ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { BookOpen, Play, ChevronRight, BarChart3, LogOut } from 'lucide-react';
 import { SOUND_EFFECT_PRESETS, DEFAULT_SOUND_EFFECT_ID } from '../constants/sound-effects';
 import { playSoundEffect } from '../utils/sound-effects';
+import { apiClient, Unit } from '../utils/api-client';
 
 export interface QuizConfig {
   subject?: string;
@@ -53,66 +54,32 @@ const SUBJECT_CARDS: SelectionCard[] = [
 
 type UnitCard = SelectionCard & { subject: string };
 
-const UNIT_CARDS: Record<string, UnitCard[]> = {
-  '社会': [
-    {
-      value: 'all',
-      label: '全単元',
-      icon: '📘',
-      description: '社会の全単元',
-      subject: '社会',
-    },
-    {
-      value: '強かな支配の中で生きた人々',
-      label: '強かな支配の中で生きた人々',
-      icon: '🏯',
-      description: '江戸時代初期の社会',
-      subject: '社会',
-    },
-    {
-      value: '国を閉ざした日本',
-      label: '国を閉ざした日本',
-      icon: '🗺️',
-      description: '鎖国体制と国内の変化',
-      subject: '社会',
-    },
-  ],
-  '理科': [
-    {
-      value: 'all',
-      label: '全単元',
-      icon: '📘',
-      description: '理科の全単元',
-      subject: '理科',
-    },
-    {
-      value: '電流・電圧と電気抵抗',
-      label: '電流・電圧と電気抵抗',
-      icon: '⚡',
-      description: '電気回路と電流の性質',
-      subject: '理科',
-    },
-  ],
+// Default icons for units (can be customized per unit)
+const UNIT_ICONS: Record<string, string> = {
+  '強かな支配の中で生きた人々': '🏯',
+  '国を閉ざした日本': '🗺️',
+  '電流と回路': '⚡',
+  '電流・電圧と電気抵抗': '⚡',
 };
 
 const HISTORY_FILTER_CARDS: SelectionCard[] = [
   {
     value: 'all',
-    label: 'すべての問題',
+    label: 'まとめて全部！',
     icon: '🗂️',
-    description: '履歴に関係なく全て出題',
+    description: '',
   },
   {
     value: 'unanswered',
-    label: '未回答のみ',
-    icon: '📝',
-    description: 'まだ解いていない問題だけ',
+    label: '初めての問題',
+    icon: '✨',
+    description: '',
   },
   {
     value: 'uncorrected',
-    label: '正解していない問題のみ',
+    label: '苦手を克服！',
     icon: '🎯',
-    description: '一度も正解していない問題だけ',
+    description: '',
   },
 ];
 
@@ -139,16 +106,94 @@ export function QuizSettings({ onStart, onShowStats, onLogout }: QuizSettingsPro
   const [selectedHistoryFilter, setSelectedHistoryFilter] = useState<'all' | 'unanswered' | 'uncorrected'>('all');
   const [selectedCount, setSelectedCount] = useState<number>(10);
   const [selectedSoundEffect, setSelectedSoundEffect] = useState<string>(DEFAULT_SOUND_EFFECT_ID);
+  const [units, setUnits] = useState<Unit[]>([]);
+  const [isLoadingUnits, setIsLoadingUnits] = useState(false);
+  const [quizCounts, setQuizCounts] = useState<{ total: number; unanswered: number; uncorrected: number } | null>(null);
+  const [isLoadingCounts, setIsLoadingCounts] = useState(false);
+
+  // Fetch units when subject changes
+  useEffect(() => {
+    if (!selectedSubject) {
+      setUnits([]);
+      return;
+    }
+
+    const fetchUnits = async () => {
+      setIsLoadingUnits(true);
+      try {
+        const { units: fetchedUnits } = await apiClient.getUnits({ subject: selectedSubject });
+        setUnits(fetchedUnits);
+
+        // Auto-select first unit (or "all" option)
+        if (fetchedUnits.length > 0) {
+          setSelectedUnit('all');
+        } else {
+          setSelectedUnit(null);
+        }
+      } catch (error) {
+        console.error('Failed to fetch units:', error);
+        setUnits([]);
+      } finally {
+        setIsLoadingUnits(false);
+      }
+    };
+
+    void fetchUnits();
+  }, [selectedSubject]);
+
+  // Fetch quiz counts when unit changes
+  useEffect(() => {
+    if (!selectedSubject || !selectedUnit) {
+      setQuizCounts(null);
+      return;
+    }
+
+    const fetchCounts = async () => {
+      setIsLoadingCounts(true);
+      try {
+        const counts = await apiClient.getQuizCounts({
+          subject: selectedSubject,
+          unit: selectedUnit,
+        });
+        setQuizCounts(counts);
+      } catch (error) {
+        console.error('Failed to fetch quiz counts:', error);
+        setQuizCounts(null);
+      } finally {
+        setIsLoadingCounts(false);
+      }
+    };
+
+    void fetchCounts();
+  }, [selectedSubject, selectedUnit]);
 
   const availableUnits = useMemo(() => {
-    if (!selectedSubject) return [];
-    return UNIT_CARDS[selectedSubject] ?? [];
-  }, [selectedSubject]);
+    if (!selectedSubject || units.length === 0) return [];
+
+    // Add "all units" option at the beginning
+    const allUnitsCard: UnitCard = {
+      value: 'all',
+      label: '全単元',
+      icon: '📘',
+      description: `${selectedSubject}の全単元`,
+      subject: selectedSubject,
+    };
+
+    // Convert API units to UnitCards
+    const unitCards: UnitCard[] = units.map((unit) => ({
+      value: unit.name,
+      label: unit.name,
+      icon: UNIT_ICONS[unit.name] || '📖',
+      description: '', // Remove duplicate text
+      subject: unit.subject,
+    }));
+
+    return [allUnitsCard, ...unitCards];
+  }, [selectedSubject, units]);
 
   const handleSubjectSelect = (value: string) => {
     setSelectedSubject(value);
-    const firstUnit = (UNIT_CARDS[value] ?? [])[0];
-    setSelectedUnit(firstUnit?.value ?? null);
+    setSelectedUnit(null); // Will be set by useEffect
   };
 
   const handleUnitSelect = (value: string) => {
@@ -225,13 +270,22 @@ export function QuizSettings({ onStart, onShowStats, onLogout }: QuizSettingsPro
                 <h3 className="text-indigo-900 text-lg font-semibold">単元を選択</h3>
               </div>
 
-              <div 
-                className="grid gap-4"
-                style={{
-                  gridTemplateColumns: selectedSubject === '社会' ? 'repeat(3, minmax(0, 1fr))' : 'repeat(2, minmax(0, 1fr))'
-                }}
-              >
-                {availableUnits.map((unit) => {
+              {isLoadingUnits ? (
+                <div className="flex justify-center items-center py-12">
+                  <div className="text-gray-500">読み込み中...</div>
+                </div>
+              ) : availableUnits.length === 0 ? (
+                <div className="flex justify-center items-center py-12">
+                  <div className="text-gray-500">この教科にはクイズがありません</div>
+                </div>
+              ) : (
+                <div
+                  className="grid gap-4"
+                  style={{
+                    gridTemplateColumns: availableUnits.length > 2 ? 'repeat(3, minmax(0, 1fr))' : 'repeat(2, minmax(0, 1fr))'
+                  }}
+                >
+                  {availableUnits.map((unit) => {
                   const isActive = selectedUnit === unit.value;
                   return (
                     <button
@@ -255,23 +309,41 @@ export function QuizSettings({ onStart, onShowStats, onLogout }: QuizSettingsPro
                       </div>
                     </button>
                   );
-                })}
-              </div>
+                  })}
+                </div>
+              )}
             </Card>
           )}
 
-          {/* ステップ3: 履歴フィルタ */}
+          {/* ステップ3: どの問題に挑戦する？ */}
           {selectedUnit && (
             <Card className="bg-white shadow-xl rounded-2xl p-6 animate-in slide-in-from-top-4 duration-300">
               <div className="flex items-center gap-2 mb-4">
                 <div className="w-8 h-8 shrink-0 rounded-full border-2 border-indigo-600 text-indigo-600 flex items-center justify-center font-bold text-base">
                   3
                 </div>
-                <h3 className="text-indigo-900 text-lg font-semibold">履歴フィルタ</h3>
+                <h3 className="text-indigo-900 text-lg font-semibold">どの問題に挑戦する？</h3>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 {HISTORY_FILTER_CARDS.map((card) => {
                   const isActive = selectedHistoryFilter === card.value;
+
+                  // Get count for this filter type
+                  let count: number | null = null;
+                  let countText = '';
+                  if (quizCounts && !isLoadingCounts) {
+                    if (card.value === 'all') {
+                      count = quizCounts.total;
+                      countText = `全${count}問`;
+                    } else if (card.value === 'unanswered') {
+                      count = quizCounts.unanswered;
+                      countText = count > 0 ? `残り${count}問` : '回答済み';
+                    } else if (card.value === 'uncorrected') {
+                      count = quizCounts.uncorrected;
+                      countText = count > 0 ? `復習${count}問` : '全問正解';
+                    }
+                  }
+
                   return (
                     <button
                       key={card.value}
@@ -290,7 +362,13 @@ export function QuizSettings({ onStart, onShowStats, onLogout }: QuizSettingsPro
                         <div className={`font-bold ${
                           isActive ? 'text-indigo-700' : 'text-gray-700'
                         }`}>{card.label}</div>
-                        <div className="text-xs text-gray-500 mt-1">{card.description}</div>
+                        {isLoadingCounts ? (
+                          <div className="text-xs text-gray-400 mt-1">...</div>
+                        ) : countText ? (
+                          <div className={`text-sm mt-1 font-medium ${
+                            isActive ? 'text-indigo-600' : 'text-gray-600'
+                          }`}>{countText}</div>
+                        ) : null}
                       </div>
                     </button>
                   );

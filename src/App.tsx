@@ -25,7 +25,6 @@ export default function App() {
   const [loading, setLoading] = useState(true);
   const [showStats, setShowStats] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
-  const [showQuizList, setShowQuizList] = useState(false);
   const [stats, setStats] = useState({ totalQuizzes: 0, totalCorrect: 0, totalAnswers: 0 });
   const [quizConfig, setQuizConfig] = useState<QuizConfig | null>(null);
   const [soundEffectId, setSoundEffectId] = useState<string>(DEFAULT_SOUND_EFFECT_ID);
@@ -249,23 +248,11 @@ export default function App() {
       onLogout={handleLogout}
     />;
   }
-  if (showQuizList) {
-    return (
-      <QuizList
-        onBack={() => { setShowQuizList(false); setShowStats(true); }}
-        onOpenSettings={() => {
-          setShowQuizList(false);
-          setShowSettings(true);
-        }}
-      />
-    );
-  }
-
   if (showStats) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 py-8 px-4">
         <div className="max-w-3xl mx-auto">
-          <div className="flex justify-between items-center mb-8">
+          <div className="flex flex-wrap items-center justify-between gap-4 mb-8">
             <h1 className="text-indigo-900">あなたの統計</h1>
             <Button
               onClick={() => {
@@ -276,7 +263,6 @@ export default function App() {
             >
               戻る
             </Button>
-            <Button onClick={() => { setShowStats(false); setShowQuizList(true); }}>クイズ一覧を見る</Button>
           </div>
 
           <div className="grid gap-4 md:grid-cols-3 mb-6">
@@ -306,6 +292,10 @@ export default function App() {
                 ({stats.totalCorrect} / {stats.totalAnswers})
               </span>
             </div>
+          </div>
+
+          <div className="mt-12 space-y-4">
+            <QuizList layout="embedded" />
           </div>
         </div>
       </div>
@@ -405,7 +395,8 @@ export default function App() {
                 variant="outline"
                 size="sm"
               >
-                <Settings className="w-4 h-4" />
+                <Settings className="w-4 h-4 mr-1" />
+                クイズ設定に戻る
               </Button>
               <Button
                 onClick={() => setShowStats(true)}
@@ -452,6 +443,7 @@ export default function App() {
           setUserAnswer={setUserAnswer}
           isCorrect={isCorrect}
           categoryName={getQuizMetadata(currentQuiz)}
+          questionNumber={currentQuizIndex + 1}
         />
       </div>
     </div>

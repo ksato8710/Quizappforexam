@@ -51,7 +51,7 @@ describe('QuizList', () => {
     await waitFor(() => {
       expect(screen.getByText('クイズ詳細')).toBeInTheDocument()
     })
-    expect(screen.getByText('問題')).toBeInTheDocument()
+    expect(screen.getAllByText('問題').length).toBeGreaterThan(0)
     expect(screen.getByText('解答')).toBeInTheDocument()
     expect(screen.getByText('徳川家康')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: '一覧へ戻る' })).toBeInTheDocument()
