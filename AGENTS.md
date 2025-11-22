@@ -5,6 +5,11 @@
 ## エージェント運用方針
 - 可能な作業（pull/push/テスト実行など）は原則としてエージェント自身が実行する。実行可否に不確実性がある場合は、すぐに確認コマンドを試し判断する。
 - 自分で完了できると判明した作業については、ユーザーへ依頼するのではなく積極的にエージェント側で実施する。
+- ユーザーから「あなた自身で○○してほしい」と明示された作業（動作確認・デプロイ・再現調査・テストデータ後始末など）はエージェントが実行する。結果/ログ/後処理まで報告すること。具体例:
+  - Supabase Edge Function デプロイはエージェントが実行する: `supabase functions deploy make-server-856c5cf0 --project-ref gwaekeqhrihbhhiezupg`
+  - 動作確認はエージェントが実施: `curl` などで `/quizzes` GET/POST、`/login` を叩いて 500 や認証エラーがないか確認し報告
+  - 確認で作成したテストデータは必ず削除する（例: Supabase クライアントで `from('quizzes').delete().eq('id', <created_id>)`）
+  - Supabaseデプロイはユーザー確認不要で随時実行してよい（依頼待ち不要）。完了後は必ずURL/レスポンスなど結果を報告する。
 
 ## プロジェクト概要
 - Vite 6 + React 18 + TypeScript の SPA。最上位は `src/App.tsx` で、ログイン（`Auth.tsx`）、クイズ進行（`QuizCard.tsx`/`QuizList.tsx`）、設定（`QuizSettings.tsx`）を切り替えている。

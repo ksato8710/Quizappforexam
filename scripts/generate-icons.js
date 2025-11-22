@@ -1,0 +1,183 @@
+// Icon Generator Script using Canvas (Node.js)
+// This script requires 'canvas' package: npm install canvas
+
+const fs = require('fs');
+const path = require('path');
+const { createCanvas } = require('canvas');
+
+const sizes = [
+  { size: 180, name: 'apple-touch-icon-180x180.png' },
+  { size: 192, name: 'icon-192x192.png' },
+  { size: 512, name: 'icon-512x512.png' },
+  { size: 32, name: 'favicon-32x32.png' },
+  { size: 16, name: 'favicon-16x16.png' }
+];
+
+function roundRect(ctx, x, y, width, height, radius) {
+  ctx.beginPath();
+  ctx.moveTo(x + radius, y);
+  ctx.lineTo(x + width - radius, y);
+  ctx.quadraticCurveTo(x + width, y, x + width, y + radius);
+  ctx.lineTo(x + width, y + height - radius);
+  ctx.quadraticCurveTo(x + width, y + height, x + width - radius, y + height);
+  ctx.lineTo(x + radius, y + height);
+  ctx.quadraticCurveTo(x, y + height, x, y + height - radius);
+  ctx.lineTo(x, y + radius);
+  ctx.quadraticCurveTo(x, y, x + radius, y);
+  ctx.closePath();
+}
+
+function drawIcon(canvas, size) {
+  const ctx = canvas.getContext('2d');
+  canvas.width = size;
+  canvas.height = size;
+
+  // Scale factor
+  const scale = size / 512;
+
+  // Background gradient
+  const gradient = ctx.createLinearGradient(0, 0, size, size);
+  gradient.addColorStop(0, '#FF6B6B');
+  gradient.addColorStop(1, '#FFE66D');
+
+  // Rounded rectangle background
+  const radius = 115 * scale;
+  ctx.fillStyle = gradient;
+  roundRect(ctx, 0, 0, size, size, radius);
+  ctx.fill();
+
+  // Draw samurai helmet
+  ctx.save();
+  ctx.scale(scale, scale);
+
+  // Top ornament (maedate)
+  ctx.fillStyle = '#2C3E50';
+  ctx.strokeStyle = '#1A252F';
+  ctx.lineWidth = 4;
+  ctx.beginPath();
+  ctx.moveTo(256, 80);
+  ctx.quadraticCurveTo(220, 90, 220, 140);
+  ctx.lineTo(220, 160);
+  ctx.lineTo(292, 160);
+  ctx.lineTo(292, 140);
+  ctx.quadraticCurveTo(292, 90, 256, 80);
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+
+  // Main helmet body - top ellipse
+  ctx.fillStyle = '#34495E';
+  ctx.beginPath();
+  ctx.ellipse(256, 200, 130, 40, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.stroke();
+
+  // Helmet main body
+  ctx.fillStyle = '#2C3E50';
+  ctx.beginPath();
+  ctx.moveTo(126, 200);
+  ctx.quadraticCurveTo(126, 280, 256, 320);
+  ctx.quadraticCurveTo(386, 280, 386, 200);
+  ctx.fill();
+  ctx.stroke();
+
+  // Helmet plates (decorative lines)
+  ctx.strokeStyle = '#1A252F';
+  ctx.lineWidth = 2;
+  ctx.globalAlpha = 0.3;
+
+  [[256, 200, 240, 300], [256, 200, 272, 300], [200, 210, 200, 290], [312, 210, 312, 290]].forEach(line => {
+    ctx.beginPath();
+    ctx.moveTo(line[0], line[1]);
+    ctx.lineTo(line[2], line[3]);
+    ctx.stroke();
+  });
+  ctx.globalAlpha = 1;
+
+  // Side guards (fukikaeshi) - left
+  ctx.fillStyle = '#E74C3C';
+  ctx.strokeStyle = '#C0392B';
+  ctx.lineWidth = 3;
+  ctx.beginPath();
+  ctx.moveTo(120, 220);
+  ctx.lineTo(100, 260);
+  ctx.lineTo(110, 300);
+  ctx.lineTo(140, 280);
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+
+  // Side guards - right
+  ctx.beginPath();
+  ctx.moveTo(392, 220);
+  ctx.lineTo(412, 260);
+  ctx.lineTo(402, 300);
+  ctx.lineTo(372, 280);
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+
+  // Face guard ornaments
+  ctx.fillStyle = '#F39C12';
+  ctx.beginPath();
+  ctx.arc(170, 250, 8, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.beginPath();
+  ctx.arc(342, 250, 8, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Question mark background circle
+  ctx.fillStyle = 'rgba(255, 255, 255, 0.95)';
+  ctx.beginPath();
+  ctx.arc(256, 380, 80, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Question mark text
+  ctx.fillStyle = '#2C3E50';
+  ctx.font = 'bold 100px Arial, sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('?', 256, 380);
+
+  // Decorative elements
+  ctx.fillStyle = '#F39C12';
+  ctx.globalAlpha = 0.8;
+  [[180, 170, 4], [332, 170, 4], [256, 160, 6]].forEach(circle => {
+    ctx.beginPath();
+    ctx.arc(circle[0], circle[1], circle[2], 0, Math.PI * 2);
+    ctx.fill();
+  });
+
+  ctx.restore();
+}
+
+async function generateIcons() {
+  const publicDir = path.join(__dirname, '../public');
+
+  // Ensure public directory exists
+  if (!fs.existsSync(publicDir)) {
+    fs.mkdirSync(publicDir, { recursive: true });
+  }
+
+  console.log('🎨 Generating app icons...\n');
+
+  for (const config of sizes) {
+    const canvas = createCanvas(config.size, config.size);
+    drawIcon(canvas, config.size);
+
+    const buffer = canvas.toBuffer('image/png');
+    const filePath = path.join(publicDir, config.name);
+
+    fs.writeFileSync(filePath, buffer);
+    console.log(`✅ Generated ${config.name} (${config.size}x${config.size})`);
+  }
+
+  console.log('\n🎉 All icons generated successfully!');
+  console.log(`📁 Icons saved to: ${publicDir}`);
+}
+
+// Run the generator
+generateIcons().catch(err => {
+  console.error('❌ Error generating icons:', err);
+  process.exit(1);
+});

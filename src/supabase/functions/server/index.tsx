@@ -161,17 +161,46 @@ app.get("/make-server-856c5cf0/quizzes", async (c) => {
     const countParam = url.searchParams.get('count');
     const historyFilter = url.searchParams.get('historyFilter');
 
+    let unitIdFilter: string | null = null;
+
+    if (unitFilter && unitFilter !== 'all') {
+      const { unitId, error: unitLookupError } = await resolveUnitId(unitFilter, subjectFilter, { createIfMissing: false });
+
+      if (unitLookupError) {
+        console.log(`Error resolving unit for filter: ${unitLookupError.message ?? unitLookupError}`);
+        return c.json({ error: 'Failed to fetch quizzes' }, 500);
+      }
+
+      if (!unitId) {
+        return c.json({ quizzes: [] });
+      }
+
+      unitIdFilter = unitId;
+    }
+
     // Build query with filters
     let query = supabase
       .from('quizzes')
-      .select('*');
+      .select(`
+        id,
+        question,
+        answer,
+        explanation,
+        type,
+        difficulty,
+        subject,
+        unit_id,
+        category_id,
+        order,
+        units:unit_id (name, subject)
+      `);
 
     if (subjectFilter && subjectFilter !== 'all') {
       query = query.eq('subject', subjectFilter);
     }
 
-    if (unitFilter && unitFilter !== 'all') {
-      query = query.eq('unit', unitFilter);
+    if (unitIdFilter) {
+      query = query.eq('unit_id', unitIdFilter);
     }
 
     if (difficultyParam && difficultyParam !== 'mix') {
@@ -261,6 +290,18 @@ app.post("/make-server-856c5cf0/quizzes", async (c) => {
   try {
     const quiz = await c.req.json();
 
+    let unitId: string | null = null;
+    if (quiz.unit) {
+      const { unitId: resolvedUnitId, error: unitError } = await resolveUnitId(quiz.unit, quiz.subject, { createIfMissing: true });
+
+      if (unitError) {
+        console.error("Failed to resolve unit for quiz creation:", unitError);
+        return c.json({ error: 'Failed to create quiz' }, 500);
+      }
+
+      unitId = resolvedUnitId;
+    }
+
     // Write to RDB
     const { data, error } = await supabase.from("quizzes").insert({
       question: quiz.question,
@@ -270,7 +311,7 @@ app.post("/make-server-856c5cf0/quizzes", async (c) => {
       options: quiz.choices ? quiz.choices : null,
       difficulty: quiz.difficulty,
       subject: quiz.subject,
-      unit: quiz.unit,
+      unit_id: unitId,
       category_id: quiz.categoryId,
       order: quiz.order,
     }).select().single();
@@ -284,6 +325,51 @@ app.post("/make-server-856c5cf0/quizzes", async (c) => {
   } catch (error) {
     console.log(`Error creating quiz: ${error}`);
     return c.json({ error: 'Failed to create quiz' }, 500);
+  }
+});
+
+// Delete a quiz (admin/authenticated function)
+app.delete("/make-server-856c5cf0/quizzes/:id", async (c) => {
+  try {
+    const quizId = c.req.param('id');
+    if (!quizId) {
+      return c.json({ error: 'Quiz ID is required' }, 400);
+    }
+
+    const accessToken = c.req.header('Authorization')?.split(' ')[1];
+    if (!accessToken) {
+      console.log('Delete quiz: No access token provided');
+      return c.json({ error: 'Unauthorized - No access token provided' }, 401);
+    }
+
+    const { data: { user }, error: authError } = await supabase.auth.getUser(accessToken);
+    if (authError) {
+      console.log('Delete quiz: Auth error:', authError.message);
+      return c.json({ error: `Unauthorized - ${authError.message}` }, 401);
+    }
+
+    if (!user) {
+      console.log('Delete quiz: No user found');
+      return c.json({ error: 'Unauthorized - User not found' }, 401);
+    }
+
+    console.log(`Delete quiz: User ${user.id} attempting to delete quiz ${quizId}`);
+
+    const { error: deleteError } = await supabase
+      .from('quizzes')
+      .delete()
+      .eq('id', quizId);
+
+    if (deleteError) {
+      console.error('Failed to delete quiz:', deleteError);
+      return c.json({ error: 'Failed to delete quiz' }, 500);
+    }
+
+    console.log(`Delete quiz: Successfully deleted quiz ${quizId}`);
+    return c.json({ success: true });
+  } catch (error) {
+    console.log(`Error deleting quiz: ${error}`);
+    return c.json({ error: 'Failed to delete quiz' }, 500);
   }
 });
 
@@ -594,13 +680,199 @@ app.get("/make-server-856c5cf0/history", async (c) => {
   }
 });
 
+// Delete answer from history
+app.delete("/make-server-856c5cf0/history/:id", async (c) => {
+  try {
+    const answerId = c.req.param('id');
+    const accessToken = c.req.header('Authorization')?.split(' ')[1];
+    const { data: { user }, error: authError } = await supabase.auth.getUser(accessToken);
+
+    if (!user || authError) {
+      return c.json({ error: 'Unauthorized' }, 401);
+    }
+
+    // Delete the answer (RLS will ensure user can only delete their own)
+    const { error } = await supabase
+      .from('user_answers')
+      .delete()
+      .eq('id', answerId)
+      .eq('user_id', user.id);
+
+    if (error) {
+      console.log(`Error deleting answer: ${error}`);
+      return c.json({ error: 'Failed to delete answer' }, 500);
+    }
+
+    return c.json({ success: true });
+  } catch (error) {
+    console.log(`Error deleting answer: ${error}`);
+    return c.json({ error: 'Failed to delete answer' }, 500);
+  }
+});
+
+// ===== Feedback Management Endpoints =====
+
+// Submit feedback
+app.post("/make-server-856c5cf0/feedback", async (c) => {
+  try {
+    const accessToken = c.req.header('Authorization')?.split(' ')[1];
+    const { data: { user }, error: authError } = await supabase.auth.getUser(accessToken);
+
+    if (!user || authError) {
+      return c.json({ error: 'Unauthorized' }, 401);
+    }
+
+    const { type, subject, message, pageContext, quizId } = await c.req.json();
+
+    if (!type || !message) {
+      return c.json({ error: 'Type and message are required' }, 400);
+    }
+
+    if (!['bug', 'feature', 'improvement', 'other'].includes(type)) {
+      return c.json({ error: 'Invalid feedback type' }, 400);
+    }
+
+    // Insert feedback into RDB
+    const { error: feedbackError } = await supabase
+      .from('feedback')
+      .insert({
+        user_id: user.id,
+        type: type,
+        subject: subject || null,
+        message: message,
+        page_context: pageContext || null,
+        quiz_id: quizId || null,
+        status: 'pending',
+        created_at: new Date().toISOString(),
+      });
+
+    if (feedbackError) {
+      console.error(`Error inserting feedback: ${feedbackError.message}`);
+      return c.json({ error: 'Failed to submit feedback' }, 500);
+    }
+
+    return c.json({ success: true, message: 'Feedback submitted successfully' });
+  } catch (error) {
+    console.log(`Error submitting feedback: ${error}`);
+    return c.json({ error: 'Failed to submit feedback' }, 500);
+  }
+});
+
+// Get user's feedback
+app.get("/make-server-856c5cf0/feedback", async (c) => {
+  try {
+    const accessToken = c.req.header('Authorization')?.split(' ')[1];
+    const { data: { user }, error: authError } = await supabase.auth.getUser(accessToken);
+
+    if (!user || authError) {
+      return c.json({ error: 'Unauthorized' }, 401);
+    }
+
+    // Get feedback from RDB
+    const { data: feedback, error } = await supabase
+      .from('feedback')
+      .select('*')
+      .eq('user_id', user.id)
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.log(`Error fetching feedback: ${error}`);
+      return c.json({ error: 'Failed to fetch feedback' }, 500);
+    }
+
+    return c.json({ feedback: feedback || [] });
+  } catch (error) {
+    console.log(`Error fetching feedback: ${error}`);
+    return c.json({ error: 'Failed to fetch feedback' }, 500);
+  }
+});
+
 // ===== Helper Functions =====
+
+type UnitLookupOptions = {
+  createIfMissing?: boolean;
+};
+
+const unitIdCache = new Map<string, string | null>();
+
+async function resolveUnitId(
+  unitName?: string | null,
+  subject?: string | null,
+  options: UnitLookupOptions = {},
+) {
+  if (!unitName) {
+    return { unitId: null };
+  }
+
+  const normalizedName = unitName.trim();
+  const cacheKey = `${subject ?? ''}__${normalizedName}`;
+
+  if (unitIdCache.has(cacheKey)) {
+    return { unitId: unitIdCache.get(cacheKey) ?? null };
+  }
+
+  let lookup = supabase.from('units').select('id').eq('name', normalizedName).limit(1);
+  if (subject) {
+    lookup = lookup.eq('subject', subject);
+  }
+
+  const { data: existingUnit, error: lookupError } = await lookup.maybeSingle();
+  if (lookupError) {
+    return { unitId: null, error: lookupError };
+  }
+
+  if (existingUnit?.id) {
+    unitIdCache.set(cacheKey, existingUnit.id);
+    return { unitId: existingUnit.id };
+  }
+
+  if (!options.createIfMissing) {
+    unitIdCache.set(cacheKey, null);
+    return { unitId: null };
+  }
+
+  const { data: insertedUnit, error: insertError } = await supabase
+    .from('units')
+    .insert({
+      name: normalizedName,
+      subject: subject ?? null,
+    })
+    .select('id')
+    .single();
+
+  if (insertError || !insertedUnit?.id) {
+    return { unitId: null, error: insertError ?? new Error('Failed to create unit') };
+  }
+
+  unitIdCache.set(cacheKey, insertedUnit.id);
+  return { unitId: insertedUnit.id };
+}
 
 function normalizeQuiz(quiz: any) {
   if (!quiz) return quiz;
-  const { options, ...rest } = quiz;
+  const { options, units, ...rest } = quiz;
   const choices = quiz.choices ?? (Array.isArray(options) ? options : undefined);
-  return choices ? { ...rest, choices } : rest;
+  const unitName = quiz.unit ?? units?.name;
+  const subject = rest.subject ?? units?.subject;
+  const normalized = { ...rest };
+
+  if (choices) {
+    normalized.choices = choices;
+  }
+
+  if (unitName) {
+    normalized.unit = unitName;
+  }
+
+  if (quiz.unit_id) {
+    normalized.unit_id = quiz.unit_id;
+  }
+
+  if (subject) {
+    normalized.subject = subject;
+  }
+
+  return normalized;
 }
 
 async function initializeQuizzes() {
@@ -1405,13 +1677,26 @@ async function initializeQuizzes() {
     },
   ];
 
-  // Write to RDB
-  const supabase = createClient(
-    Deno.env.get("SUPABASE_URL")!,
-    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
-  );
+  const unitCache = new Map<string, string | null>();
 
   for (const quiz of defaultQuizzes) {
+    let unitId: string | null = null;
+
+    if (quiz.unit) {
+      const cacheKey = `${quiz.subject ?? ''}__${quiz.unit}`;
+      if (unitCache.has(cacheKey)) {
+        unitId = unitCache.get(cacheKey) ?? null;
+      } else {
+        const { unitId: resolvedUnitId, error: unitError } = await resolveUnitId(quiz.unit, quiz.subject, { createIfMissing: true });
+        if (unitError) {
+          console.error("Failed to resolve unit for seed quiz:", unitError);
+          continue;
+        }
+        unitId = resolvedUnitId;
+        unitCache.set(cacheKey, unitId);
+      }
+    }
+
     await supabase.from("quizzes").insert({
       question: quiz.question,
       answer: quiz.answer,
@@ -1420,7 +1705,7 @@ async function initializeQuizzes() {
       options: quiz.choices ? quiz.choices : null,
       difficulty: quiz.difficulty,
       subject: quiz.subject,
-      unit: quiz.unit,
+      unit_id: unitId,
       category_id: quiz.categoryId,
       order: quiz.order,
     });

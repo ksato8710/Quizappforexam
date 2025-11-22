@@ -31,9 +31,8 @@ export function QuizCard({
 }: QuizCardProps) {
   const handleChoiceClick = (choice: string) => {
     if (!showAnswer) {
-      // Extract the choice letter (ア, イ, ウ, エ)
-      const choiceLetter = choice.charAt(0);
-      setUserAnswer(choiceLetter);
+      // Save the full choice string to avoid collisions when choices share the same first character
+      setUserAnswer(choice);
     }
   };
 
@@ -85,8 +84,7 @@ export function QuizCard({
           {quiz.type === 'multiple-choice' && quiz.choices && (
             <div className="space-y-2 mt-6">
               {quiz.choices.map((choice, index) => {
-                const choiceLetter = choice.charAt(0);
-                const isSelected = userAnswer === choiceLetter;
+                const isSelected = userAnswer === choice;
                 
                 return (
                   <button
@@ -175,7 +173,7 @@ export function QuizCard({
               size="lg"
             >
               <Eye className="w-4 h-4 mr-2" />
-              答えを見る
+              回答する
             </Button>
           ) : (
             <Button

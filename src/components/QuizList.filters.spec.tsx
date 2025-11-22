@@ -20,6 +20,15 @@ vi.mock('@/utils/api-client', () => {
     apiClient: {
       getQuizzes: vi.fn().mockResolvedValue({ quizzes }),
       getHistory: vi.fn().mockResolvedValue({ history }),
+      getUnits: vi.fn().mockImplementation(({ subject }) => {
+        const unitMap: Record<string, string[]> = {
+          社会: ['江戸時代'],
+          理科: ['電気'],
+        }
+        return Promise.resolve({
+          units: (unitMap[subject] ?? []).map((name) => ({ id: name, subject, name })),
+        })
+      }),
     },
   }
 })

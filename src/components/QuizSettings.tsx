@@ -20,6 +20,7 @@ export interface QuizConfig {
 interface QuizSettingsProps {
   onStart: (config: QuizConfig) => void;
   onShowStats?: () => void;
+  onShowQuizCreation?: () => void;
   onLogout?: () => void;
 }
 
@@ -101,7 +102,7 @@ export function buildQuizConfig(state: QuizSelectionState): QuizConfig {
   };
 }
 
-export function QuizSettings({ onStart, onShowStats, onLogout }: QuizSettingsProps) {
+export function QuizSettings({ onStart, onShowStats, onShowQuizCreation, onLogout }: QuizSettingsProps) {
   const [selectedSubject, setSelectedSubject] = useState<string | null>(null);
   const [selectedUnit, setSelectedUnit] = useState<string | null>(null);
   const [selectedHistoryFilter, setSelectedHistoryFilter] = useState<'all' | 'unanswered' | 'uncorrected'>('all');
@@ -274,15 +275,28 @@ export function QuizSettings({ onStart, onShowStats, onLogout }: QuizSettingsPro
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 py-8 px-4">
       <div className="max-w-3xl mx-auto">
-        <div className="text-center mb-8">
-          <div className="flex items-center justify-center gap-2 mb-2">
-            <BookOpen className="w-8 h-8 text-indigo-600" />
-            <h1 className="text-indigo-900">クイズ設定</h1>
-          </div>
-          <p className="text-gray-600">学習したい内容を選択してください</p>
-        </div>
-
         <div className="space-y-6">
+          <div className="text-center mb-8">
+            <div className="flex items-center justify-center gap-2 mb-2">
+              <BookOpen className="w-8 h-8 text-indigo-600" />
+              <h1 className="text-indigo-900">クイズ設定</h1>
+            </div>
+            <p className="text-gray-600">学習したい内容を選択してください</p>
+          </div>
+
+          {onShowQuizCreation && (
+            <div className="mb-6 flex justify-center">
+              <Button
+                onClick={onShowQuizCreation}
+                variant="outline"
+                className="border-indigo-300 text-indigo-700 hover:bg-indigo-50 hover:border-indigo-500"
+              >
+                ➕ クイズを追加
+              </Button>
+            </div>
+          )}
+
+          <div className="space-y-6">
           {/* ステップ1: 教科選択 */}
           <Card className="bg-white shadow-xl rounded-2xl p-6">
             <div className="flex items-center gap-2 mb-4">
@@ -552,8 +566,10 @@ export function QuizSettings({ onStart, onShowStats, onLogout }: QuizSettingsPro
             )}
           </div>
         </div>
+
+          <FeedbackWidget pageContext="クイズ設定画面" />
+        </div>
       </div>
-      <FeedbackWidget pageContext="クイズ設定画面" />
     </div>
   );
 }

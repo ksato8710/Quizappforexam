@@ -12,6 +12,7 @@ export interface Quiz {
   difficulty?: number;
   subject?: string;  // 教科（例: 社会、理科）
   unit?: string;     // 単元（例: 強かな支配の中で生きた人々）
+  unit_id?: string;
   order?: number;
 }
 
@@ -121,6 +122,24 @@ export const apiClient = {
     return fetchAPI(url, {}, requiresAuth);
   },
 
+  createQuiz: async (params: {
+    question: string;
+    answer: string;
+    explanation: string;
+    type: 'text' | 'multiple-choice';
+    choices?: string[];
+    difficulty?: number;
+    subject?: string;
+    unit?: string;
+    categoryId?: string;
+    order?: number;
+  }): Promise<{ message: string; quizId: string }> => {
+    return fetchAPI('/quizzes', {
+      method: 'POST',
+      body: JSON.stringify(params),
+    }, true);
+  },
+
   // Categories
   getCategories: async (): Promise<{ categories: Category[] }> => {
     return fetchAPI('/categories');
@@ -173,6 +192,10 @@ export const apiClient = {
 
   deleteAnswer: async (answerId: string): Promise<{ success: boolean }> => {
     return fetchAPI(`/history/${answerId}`, { method: 'DELETE' }, true);
+  },
+
+  deleteQuiz: async (quizId: string): Promise<{ success: boolean }> => {
+    return fetchAPI(`/quizzes/${quizId}`, { method: 'DELETE' }, true);
   },
 
   // Feedback

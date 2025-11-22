@@ -4,9 +4,11 @@ import { QuizSettings, QuizConfig } from './components/QuizSettings';
 import { Auth } from './components/Auth';
 import { QuizList } from './components/QuizList';
 import { AnswerHistory } from './components/AnswerHistory';
+import { QuizCreationForm } from './components/QuizCreationForm';
 import { FeedbackWidget } from './components/FeedbackWidget';
 import { Button } from './components/ui/button';
 import { Card } from './components/ui/card';
+import { Toaster } from './components/ui/sonner';
 import { BookOpen, RotateCcw, LogOut, BarChart3, Settings } from 'lucide-react';
 import { apiClient, Quiz } from './utils/api-client';
 import { getSupabaseClient } from './utils/supabase/client';
@@ -28,6 +30,7 @@ export default function App() {
   const [showStats, setShowStats] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [showAnswerHistory, setShowAnswerHistory] = useState(false);
+  const [showQuizCreation, setShowQuizCreation] = useState(false);
   const [stats, setStats] = useState({ totalQuizzes: 0, totalCorrect: 0, totalAnswers: 0 });
   const [quizConfig, setQuizConfig] = useState<QuizConfig | null>(null);
   const [soundEffectId, setSoundEffectId] = useState<string>(DEFAULT_SOUND_EFFECT_ID);
@@ -222,6 +225,23 @@ export default function App() {
     setShowSettings(true);
   };
 
+  const handleShowQuizCreation = () => {
+    setShowQuizCreation(true);
+    setShowSettings(false);
+    setShowStats(false);
+  };
+
+  const handleCloseQuizCreation = () => {
+    setShowQuizCreation(false);
+    setShowSettings(true);
+  };
+
+  const handleQuizCreationSuccess = () => {
+    setShowQuizCreation(false);
+    setShowSettings(true);
+    // クイズリストを再読み込み（統計画面で最新のクイズが表示されるように）
+  };
+
   const getQuizMetadata = (quiz: Quiz) => {
     const parts = [];
     if (quiz.subject) parts.push(quiz.subject);
@@ -241,6 +261,15 @@ export default function App() {
     return <Auth onAuthSuccess={handleAuthSuccess} />;
   }
 
+  if (showQuizCreation) {
+    return (
+      <QuizCreationForm
+        onClose={handleCloseQuizCreation}
+        onSuccess={handleQuizCreationSuccess}
+      />
+    );
+  }
+
   if (showSettings) {
     return <QuizSettings
       onStart={handleQuizStart}
@@ -248,6 +277,7 @@ export default function App() {
         setShowStats(true);
         setShowSettings(false);
       }}
+      onShowQuizCreation={handleShowQuizCreation}
       onLogout={handleLogout}
     />;
   }
@@ -263,7 +293,7 @@ export default function App() {
   }
   if (showStats) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 py-8 px-4">
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 py-8 px-4 space-y-6">
         <div className="max-w-3xl mx-auto">
           <div className="flex flex-wrap items-center justify-between gap-4 mb-8">
             <h1 className="text-indigo-900">あなたの統計</h1>
@@ -330,7 +360,7 @@ export default function App() {
   if (isCompleted) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
-        <div className="max-w-2xl w-full bg-white rounded-2xl shadow-xl p-8 text-center">
+        <div className="max-w-3xl w-full bg-white rounded-2xl shadow-xl p-8 text-center">
           <div className="mb-6">
             <div className="w-20 h-20 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-full flex items-center justify-center mx-auto mb-4">
               <BookOpen className="w-10 h-10 text-white" />
@@ -382,7 +412,7 @@ export default function App() {
     if (noQuizzesMessage) {
       return (
         <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
-          <Card className="max-w-xl w-full bg-white shadow-xl rounded-2xl p-8 text-center space-y-6">
+          <Card className="max-w-3xl w-full bg-white shadow-xl rounded-2xl p-8 text-center space-y-6">
             <h2 className="text-indigo-900 text-2xl font-semibold">{noQuizzesMessage}</h2>
             <p className="text-gray-600">別の条件を選んでみましょう。</p>
             <div className="flex flex-wrap gap-3 justify-center">
@@ -405,7 +435,7 @@ export default function App() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 py-8 px-4">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 py-8 px-4 space-y-6">
       <div className="max-w-3xl mx-auto">
         {/* Header */}
         <div className="text-center mb-8">
@@ -473,6 +503,7 @@ export default function App() {
         />
       </div>
       <FeedbackWidget pageContext="クイズ画面" quizId={currentQuiz?.id} />
+      <Toaster />
     </div>
   );
 }

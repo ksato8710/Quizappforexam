@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, cleanup } from '@testing-library/react';
+import { useState } from 'react';
 import { QuizCard } from './QuizCard';
 import { Quiz } from '../utils/api-client';
 
@@ -139,7 +140,7 @@ describe('QuizCard Component', () => {
             const choice = screen.getByText('ア. 大名の財力を削ぐため');
             fireEvent.click(choice);
 
-            expect(setUserAnswer).toHaveBeenCalledWith('ア');
+            expect(setUserAnswer).toHaveBeenCalledWith('ア. 大名の財力を削ぐため');
         });
 
         it('解答表示後は選択肢をクリックできない', () => {
@@ -153,11 +154,71 @@ describe('QuizCard Component', () => {
         });
 
         it('選択した選択肢がハイライトされる', () => {
-            render(<QuizCard {...defaultProps} quiz={mockMultipleChoiceQuiz} userAnswer="ア" />);
+            render(<QuizCard {...defaultProps} quiz={mockMultipleChoiceQuiz} userAnswer="ア. 大名の財力を削ぐため" />);
 
             const choiceButton = screen.getByText('ア. 大名の財力を削ぐため').closest('button');
             expect(choiceButton).toHaveClass('border-indigo-500');
             expect(choiceButton).toHaveClass('bg-indigo-50');
+        });
+
+        it('選択肢を選ぶと「回答する」ボタンが有効になる', () => {
+            const Wrapper = () => {
+                const [answer, setAnswer] = useState('');
+                return (
+                    <QuizCard
+                        {...defaultProps}
+                        quiz={mockMultipleChoiceQuiz}
+                        userAnswer={answer}
+                        setUserAnswer={setAnswer}
+                    />
+                );
+            };
+
+            render(<Wrapper />);
+
+            const button = screen.getByRole('button', { name: /回答する/i });
+            expect(button).toBeDisabled();
+
+            fireEvent.click(screen.getByText('ア. 大名の財力を削ぐため'));
+
+            expect(button).not.toBeDisabled();
+        });
+
+        it('先頭文字が同じ選択肢でも単一選択になる', () => {
+            const quiz = {
+                ...mockMultipleChoiceQuiz,
+                choices: [
+                    'どちらも同じだけ傾く。',
+                    'どちらもまったく傾かない。',
+                    '2回巻きつけたほうが大きく傾く。',
+                    '1回巻きつけたほうが大きく傾く。',
+                ],
+            };
+
+            const Wrapper = () => {
+                const [answer, setAnswer] = useState('');
+                return (
+                    <QuizCard
+                        {...defaultProps}
+                        quiz={quiz}
+                        userAnswer={answer}
+                        setUserAnswer={setAnswer}
+                    />
+                );
+            };
+
+            render(<Wrapper />);
+
+            const first = screen.getByText('どちらも同じだけ傾く。').closest('button')!;
+            const second = screen.getByText('どちらもまったく傾かない。').closest('button')!;
+
+            fireEvent.click(first);
+            expect(first).toHaveClass('border-indigo-500');
+            expect(second).not.toHaveClass('border-indigo-500');
+
+            fireEvent.click(second);
+            expect(second).toHaveClass('border-indigo-500');
+            expect(first).not.toHaveClass('border-indigo-500');
         });
     });
 
@@ -209,28 +270,28 @@ describe('QuizCard Component', () => {
     describe('ボタン状態', () => {
         it('未回答時は「答えを見る」ボタンが無効', () => {
             render(<QuizCard {...defaultProps} quiz={mockTextQuiz} userAnswer="" />);
-            const button = screen.getByRole('button', { name: /答えを見る/i });
+            const button = screen.getByRole('button', { name: /回答する/i });
             expect(button).toBeDisabled();
         });
 
-        it('回答後は「答えを見る」ボタンが有効', () => {
+        it('回答後は「回答する」ボタンが有効', () => {
             render(<QuizCard {...defaultProps} quiz={mockTextQuiz} userAnswer="徳川家康" />);
-            const button = screen.getByRole('button', { name: /答えを見る/i });
+            const button = screen.getByRole('button', { name: /回答する/i });
             expect(button).not.toBeDisabled();
         });
 
-        it('空白のみの回答では「答えを見る」ボタンが無効', () => {
+        it('空白のみの回答では「回答する」ボタンが無効', () => {
             render(<QuizCard {...defaultProps} quiz={mockTextQuiz} userAnswer="   " />);
-            const button = screen.getByRole('button', { name: /答えを見る/i });
+            const button = screen.getByRole('button', { name: /回答する/i });
             expect(button).toBeDisabled();
         });
 
-        it('「答えを見る」ボタンをクリックするとonShowAnswerが呼ばれる', () => {
+        it('「回答する」ボタンをクリックするとonShowAnswerが呼ばれる', () => {
             const onShowAnswer = vi.fn();
             render(<QuizCard {...defaultProps} quiz={mockTextQuiz} userAnswer="徳川家康" onShowAnswer={onShowAnswer} />);
 
 
-            const button = screen.getByText('答えを見る').closest('button')!;
+            const button = screen.getByText('回答する').closest('button')!;
             fireEvent.click(button);
 
             expect(onShowAnswer).toHaveBeenCalledTimes(1);

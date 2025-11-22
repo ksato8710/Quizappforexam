@@ -3,7 +3,7 @@ import { render, screen, waitFor, within } from '@testing-library/react'
 import { QuizList } from './QuizList'
 
 vi.mock('@/utils/api-client', () => {
-  const quizzes = [
+  let quizzes = [
     { id: 'q1', question: '江戸幕府を開いた将軍は？', answer: '徳川家康', explanation: '関ヶ原の戦いの後、1603年に征夷大将軍に任命。', type: 'text', subject: '社会', unit: '江戸時代', difficulty: 2 },
     { id: 'q2', question: '参勤交代の目的は？', answer: '大名統制', explanation: '', type: 'text', subject: '社会', unit: '江戸時代', difficulty: 3 },
   ]
@@ -14,8 +14,12 @@ vi.mock('@/utils/api-client', () => {
   ]
   return {
     apiClient: {
-      getQuizzes: vi.fn().mockResolvedValue({ quizzes }),
+      getQuizzes: vi.fn().mockImplementation(async () => ({ quizzes })),
       getHistory: vi.fn().mockResolvedValue({ history }),
+      deleteQuiz: vi.fn().mockImplementation(async (id: string) => {
+        quizzes = quizzes.filter((q) => q.id !== id)
+        return { success: true }
+      }),
     },
   }
 })
@@ -55,5 +59,28 @@ describe('QuizList', () => {
     expect(screen.getByText('解答')).toBeInTheDocument()
     expect(screen.getByText('徳川家康')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: '一覧へ戻る' })).toBeInTheDocument()
+  })
+
+  it('詳細画面からクイズを削除できる', async () => {
+    const { apiClient } = await import('@/utils/api-client')
+    render(<QuizList onBack={() => {}} />)
+    const target = await screen.findAllByText('江戸幕府を開いた将軍は？')
+    target[0].click()
+
+    await waitFor(() => {
+      expect(screen.getByText('クイズ詳細')).toBeInTheDocument()
+    })
+
+    const deleteButton = screen.getByRole('button', { name: 'クイズを削除' })
+    deleteButton.click()
+
+    const confirmButton = await screen.findByRole('button', { name: '削除する' })
+    confirmButton.click()
+
+    await waitFor(() => {
+      expect(apiClient.deleteQuiz).toHaveBeenCalledWith('q1')
+      expect(apiClient.getQuizzes).toHaveBeenCalledTimes(2)
+      expect(screen.queryByText('クイズ詳細')).not.toBeInTheDocument()
+    })
   })
 })

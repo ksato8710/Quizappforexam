@@ -3,6 +3,7 @@ import { apiClient, Quiz } from '@/utils/api-client'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
+import { toast } from 'sonner'
 
 type HistoryItem = {
   quizId?: string
@@ -39,6 +40,8 @@ export function QuizList({ onBack, onOpenSettings, layout = 'full' }: QuizListPr
   const [sortKey, setSortKey] = useState<'none' | 'question' | 'subject' | 'unit' | 'difficulty' | 'answers' | 'accuracy' | 'order'>('none')
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc')
   const [availableUnits, setAvailableUnits] = useState<string[]>([])
+  const [isDeleting, setIsDeleting] = useState(false)
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
 
   useEffect(() => {
     let isMounted = true
@@ -188,12 +191,92 @@ export function QuizList({ onBack, onOpenSettings, layout = 'full' }: QuizListPr
       if (acc >= 50) return 'text-yellow-600'
       return 'text-red-600'
     }
+    const handleDelete = async () => {
+      if (!selected) return
 
+      setIsDeleting(true)
+      try {
+        await apiClient.deleteQuiz(selected.id)
+        const { quizzes: refreshed } = await apiClient.getQuizzes()
+        setQuizzes(Array.isArray(refreshed) ? refreshed.filter(Boolean) : [])
+        setShowDeleteConfirm(false)
+        setSelected(null)
+        toast.success('クイズを削除しました')
+      } catch (error) {
+        console.error('[QuizList] Failed to delete quiz:', error)
+        const errorMessage = error instanceof Error ? error.message : String(error)
+
+        if (errorMessage.includes('Unauthorized') || errorMessage.includes('401') || errorMessage.includes('403')) {
+          toast.error('認証エラーが発生しました。再度ログインしてください。')
+          localStorage.removeItem('accessToken')
+          window.location.reload()
+        } else {
+          toast.error('クイズの削除に失敗しました。時間をおいて再試行してください。')
+        }
+      } finally {
+        setIsDeleting(false)
+      }
+    }
+
+    // 削除確認画面
+    if (showDeleteConfirm) {
+      const deleteConfirmContent = (
+        <>
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <h1 className={`text-red-600 font-bold ${isEmbedded ? 'text-xl' : 'text-2xl'}`}>クイズを削除</h1>
+          </div>
+          <Card className="p-8 space-y-6 shadow-lg border-2 border-red-200">
+            <div className="bg-red-50 border-l-4 border-red-500 p-5 rounded-r-lg">
+              <p className="text-red-900 font-semibold mb-3 text-lg">本当にこのクイズを削除しますか？</p>
+              <p className="text-gray-700 mb-4">この操作は取り消せません。削除後は復元できません。</p>
+              <div className="bg-white p-4 rounded border border-red-200">
+                <p className="text-sm text-gray-600 mb-2">削除するクイズ:</p>
+                <p className="text-gray-900 font-medium">{selected.question}</p>
+              </div>
+            </div>
+            <div className="flex gap-3 justify-end flex-wrap">
+              <Button
+                variant="outline"
+                onClick={() => setShowDeleteConfirm(false)}
+                disabled={isDeleting}
+              >
+                キャンセル
+              </Button>
+              <Button
+                variant="destructive"
+                onClick={handleDelete}
+                disabled={isDeleting}
+              >
+                {isDeleting ? '削除中...' : '削除する'}
+              </Button>
+            </div>
+          </Card>
+        </>
+      )
+
+      if (isEmbedded) {
+        return <div className="space-y-6">{deleteConfirmContent}</div>
+      }
+
+      return (
+        <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 py-8 px-4">
+          <div className="max-w-3xl mx-auto space-y-6">{deleteConfirmContent}</div>
+        </div>
+      )
+    }
+
+    // クイズ詳細画面
     const detailContent = (
       <>
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <h1 className={`text-indigo-900 ${isEmbedded ? 'text-xl' : ''}`}>クイズ詳細</h1>
           <div className="flex gap-2 flex-wrap">
+            <Button
+              variant="destructive"
+              onClick={() => setShowDeleteConfirm(true)}
+            >
+              クイズを削除
+            </Button>
             <Button variant="outline" onClick={() => setSelected(null)}>
               一覧へ戻る
             </Button>
