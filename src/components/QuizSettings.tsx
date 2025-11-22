@@ -2,6 +2,7 @@ import { useMemo, useState, useEffect } from 'react';
 import { Card } from './ui/card';
 import { Button } from './ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
+import { FeedbackWidget } from './FeedbackWidget';
 import { BookOpen, Play, ChevronRight, BarChart3, LogOut } from 'lucide-react';
 import { SOUND_EFFECT_PRESETS, DEFAULT_SOUND_EFFECT_ID } from '../constants/sound-effects';
 import { playSoundEffect } from '../utils/sound-effects';
@@ -110,6 +111,8 @@ export function QuizSettings({ onStart, onShowStats, onLogout }: QuizSettingsPro
   const [isLoadingUnits, setIsLoadingUnits] = useState(false);
   const [quizCounts, setQuizCounts] = useState<{ total: number; unanswered: number; uncorrected: number } | null>(null);
   const [isLoadingCounts, setIsLoadingCounts] = useState(false);
+  const [unitCounts, setUnitCounts] = useState<Record<string, number | null>>({});
+  const [isLoadingUnitCounts, setIsLoadingUnitCounts] = useState(false);
 
   // Fetch units when subject changes
   useEffect(() => {
@@ -141,6 +144,86 @@ export function QuizSettings({ onStart, onShowStats, onLogout }: QuizSettingsPro
     void fetchUnits();
   }, [selectedSubject]);
 
+  const availableUnits = useMemo(() => {
+    if (!selectedSubject || units.length === 0) return [];
+
+    // Add "all units" option at the beginning
+    const allUnitsCard: UnitCard = {
+      value: 'all',
+      label: '全単元',
+      icon: '📘',
+      description: `${selectedSubject}の全単元`,
+      subject: selectedSubject,
+    };
+
+    // Convert API units to UnitCards
+    const unitCards: UnitCard[] = units.map((unit) => ({
+      value: unit.name,
+      label: unit.name,
+      icon: UNIT_ICONS[unit.name] || '📖',
+      description: '', // Remove duplicate text
+      subject: unit.subject,
+    }));
+
+    return [allUnitsCard, ...unitCards];
+  }, [selectedSubject, units]);
+
+  // Fetch counts for all units to show on cards
+  useEffect(() => {
+    if (!selectedSubject || availableUnits.length === 0) {
+      setUnitCounts({});
+      return;
+    }
+
+    let cancelled = false;
+    const fetchUnitCounts = async () => {
+      setIsLoadingUnitCounts(true);
+      try {
+        const entries = await Promise.all(
+          availableUnits.map(async (unit) => {
+            try {
+              const counts = await apiClient.getQuizCounts({
+                subject: selectedSubject,
+                unit: unit.value,
+              });
+              return [unit.value, counts.total] as const;
+            } catch (error) {
+              console.error('Failed to fetch unit count:', error);
+              return [unit.value, null] as const;
+            }
+          }),
+        );
+
+        if (!cancelled) {
+          setUnitCounts(Object.fromEntries(entries));
+        }
+      } finally {
+        if (!cancelled) {
+          setIsLoadingUnitCounts(false);
+        }
+      }
+    };
+
+    void fetchUnitCounts();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [availableUnits, selectedSubject]);
+
+  const visibleUnits = useMemo(() => {
+    if (availableUnits.length === 0) return [];
+    return availableUnits.filter((unit) => unit.value === 'all' || unitCounts[unit.value] !== 0);
+  }, [availableUnits, unitCounts]);
+
+  useEffect(() => {
+    if (!selectedUnit) return;
+    const visibleUnitValues = visibleUnits.map((unit) => unit.value);
+    if (!visibleUnitValues.includes(selectedUnit)) {
+      setSelectedUnit(visibleUnitValues[0] ?? null);
+    }
+  }, [selectedUnit, visibleUnits]);
+
   // Fetch quiz counts when unit changes
   useEffect(() => {
     if (!selectedSubject || !selectedUnit) {
@@ -166,30 +249,6 @@ export function QuizSettings({ onStart, onShowStats, onLogout }: QuizSettingsPro
 
     void fetchCounts();
   }, [selectedSubject, selectedUnit]);
-
-  const availableUnits = useMemo(() => {
-    if (!selectedSubject || units.length === 0) return [];
-
-    // Add "all units" option at the beginning
-    const allUnitsCard: UnitCard = {
-      value: 'all',
-      label: '全単元',
-      icon: '📘',
-      description: `${selectedSubject}の全単元`,
-      subject: selectedSubject,
-    };
-
-    // Convert API units to UnitCards
-    const unitCards: UnitCard[] = units.map((unit) => ({
-      value: unit.name,
-      label: unit.name,
-      icon: UNIT_ICONS[unit.name] || '📖',
-      description: '', // Remove duplicate text
-      subject: unit.subject,
-    }));
-
-    return [allUnitsCard, ...unitCards];
-  }, [selectedSubject, units]);
 
   const handleSubjectSelect = (value: string) => {
     setSelectedSubject(value);
@@ -274,7 +333,7 @@ export function QuizSettings({ onStart, onShowStats, onLogout }: QuizSettingsPro
                 <div className="flex justify-center items-center py-12">
                   <div className="text-gray-500">読み込み中...</div>
                 </div>
-              ) : availableUnits.length === 0 ? (
+              ) : visibleUnits.length === 0 ? (
                 <div className="flex justify-center items-center py-12">
                   <div className="text-gray-500">この教科にはクイズがありません</div>
                 </div>
@@ -282,33 +341,41 @@ export function QuizSettings({ onStart, onShowStats, onLogout }: QuizSettingsPro
                 <div
                   className="grid gap-4"
                   style={{
-                    gridTemplateColumns: availableUnits.length > 2 ? 'repeat(3, minmax(0, 1fr))' : 'repeat(2, minmax(0, 1fr))'
+                    gridTemplateColumns: visibleUnits.length > 2 ? 'repeat(3, minmax(0, 1fr))' : 'repeat(2, minmax(0, 1fr))'
                   }}
                 >
-                  {availableUnits.map((unit) => {
-                  const isActive = selectedUnit === unit.value;
-                  return (
-                    <button
-                      key={`${unit.subject}-${unit.value}`}
-                      type="button"
-                      aria-pressed={isActive}
-                      aria-label={unit.label}
-                      onClick={() => handleUnitSelect(unit.value)}
-                      className={`p-6 rounded-xl border-2 transition-all min-w-0 ${
-                        isActive
-                          ? 'border-indigo-500 bg-indigo-50'
-                          : 'border-gray-200 hover:border-indigo-300'
-                      }`}
-                    >
-                      <div className="text-center">
-                        <div className="text-3xl mb-2">{unit.icon}</div>
-                        <div className={`font-bold break-words ${
-                          isActive ? 'text-indigo-700' : 'text-gray-700'
-                        }`}>{unit.label}</div>
-                        <div className="text-xs text-gray-500 mt-1 break-words">{unit.description}</div>
-                      </div>
-                    </button>
-                  );
+                  {visibleUnits.map((unit) => {
+                    const isActive = selectedUnit === unit.value;
+                    const count = unitCounts[unit.value];
+                    const countText = count != null ? `全${count}問` : '...';
+
+                    return (
+                      <button
+                        key={`${unit.subject}-${unit.value}`}
+                        type="button"
+                        aria-pressed={isActive}
+                        aria-label={unit.label}
+                        onClick={() => handleUnitSelect(unit.value)}
+                        className={`p-6 rounded-xl border-2 transition-all min-w-0 ${
+                          isActive
+                            ? 'border-indigo-500 bg-indigo-50'
+                            : 'border-gray-200 hover:border-indigo-300'
+                        }`}
+                      >
+                        <div className="text-center">
+                          <div className="text-3xl mb-2">{unit.icon}</div>
+                          <div className={`font-bold break-words ${
+                            isActive ? 'text-indigo-700' : 'text-gray-700'
+                          }`}>{unit.label}</div>
+                          <div className="text-xs text-gray-500 mt-1 break-words">{unit.description}</div>
+                          <div className={`text-sm font-medium mt-2 ${
+                            isActive ? 'text-indigo-600' : 'text-gray-600'
+                          }`}>
+                            {isLoadingUnitCounts && count == null ? '...' : countText}
+                          </div>
+                        </div>
+                      </button>
+                    );
                   })}
                 </div>
               )}
@@ -486,6 +553,7 @@ export function QuizSettings({ onStart, onShowStats, onLogout }: QuizSettingsPro
           </div>
         </div>
       </div>
+      <FeedbackWidget pageContext="クイズ設定画面" />
     </div>
   );
 }

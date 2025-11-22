@@ -197,7 +197,7 @@ app.get("/make-server-856c5cf0/quizzes", async (c) => {
         .from('quizzes')
         .select('*')
         .order('order', { ascending: true });
-      return c.json({ quizzes: newQuizzes || [] });
+      return c.json({ quizzes: (newQuizzes || []).map(normalizeQuiz) });
     }
 
     let filteredQuizzes = quizzes;
@@ -248,7 +248,8 @@ app.get("/make-server-856c5cf0/quizzes", async (c) => {
     }
 
     console.log(`Returning ${filteredQuizzes.length} quizzes`);
-    return c.json({ quizzes: filteredQuizzes });
+    const normalizedQuizzes = filteredQuizzes.map(normalizeQuiz);
+    return c.json({ quizzes: normalizedQuizzes });
   } catch (error) {
     console.log(`Error fetching quizzes: ${error}`);
     return c.json({ error: 'Failed to fetch quizzes' }, 500);
@@ -314,6 +315,125 @@ app.get("/make-server-856c5cf0/categories", async (c) => {
   } catch (error) {
     console.log(`Error fetching categories: ${error}`);
     return c.json({ error: 'Failed to fetch categories' }, 500);
+  }
+});
+
+// Get units with available quizzes
+app.get("/make-server-856c5cf0/units", async (c) => {
+  try {
+    const url = new URL(c.req.url);
+    const subjectFilter = url.searchParams.get('subject');
+
+    let query = supabase
+      .from('units')
+      .select('id, subject, name')
+      .order('name', { ascending: true });
+
+    if (subjectFilter && subjectFilter !== 'all') {
+      query = query.eq('subject', subjectFilter);
+    }
+
+    const { data: units, error } = await query;
+
+    if (error) {
+      console.log(`Error fetching units: ${error}`);
+      return c.json({ error: 'Failed to fetch units' }, 500);
+    }
+
+    return c.json({ units: units || [] });
+  } catch (error) {
+    console.log(`Error fetching units: ${error}`);
+    return c.json({ error: 'Failed to fetch units' }, 500);
+  }
+});
+
+// Get quiz counts by history filter
+app.get("/make-server-856c5cf0/quiz-counts", async (c) => {
+  try {
+    const url = new URL(c.req.url);
+    const subject = url.searchParams.get('subject');
+    const unit = url.searchParams.get('unit');
+    const accessToken = c.req.header('Authorization')?.split(' ')[1];
+
+    if (!subject) {
+      return c.json({ error: 'Subject is required' }, 400);
+    }
+
+    // Get user for history-based counts
+    let userId: string | null = null;
+    if (accessToken) {
+      const { data: { user } } = await supabase.auth.getUser(accessToken);
+      userId = user?.id || null;
+    }
+
+    // Get unit_id if unit name is provided
+    let unitId: string | null = null;
+    if (unit && unit !== 'all') {
+      const { data: unitData } = await supabase
+        .from('units')
+        .select('id')
+        .eq('name', unit)
+        .eq('subject', subject)
+        .single();
+      unitId = unitData?.id || null;
+    }
+
+    // Build base query
+    let baseQuery = supabase.from('quizzes').select('id', { count: 'exact', head: true });
+
+    if (subject !== 'all') {
+      baseQuery = baseQuery.eq('subject', subject);
+    }
+    if (unitId) {
+      baseQuery = baseQuery.eq('unit_id', unitId);
+    }
+
+    // Get total count
+    const { count: total } = await baseQuery;
+
+    let unanswered = 0;
+    let uncorrected = 0;
+
+    if (userId) {
+      // Get user's answered quiz IDs
+      const { data: userAnswers } = await supabase
+        .from('user_answers')
+        .select('quiz_id, is_correct')
+        .eq('user_id', userId);
+
+      const answeredQuizIds = new Set((userAnswers || []).map(a => a.quiz_id));
+      const correctQuizIds = new Set(
+        (userAnswers || []).filter(a => a.is_correct).map(a => a.quiz_id)
+      );
+
+      // Get all quiz IDs for this filter
+      let allQuizzesQuery = supabase.from('quizzes').select('id');
+      if (subject !== 'all') {
+        allQuizzesQuery = allQuizzesQuery.eq('subject', subject);
+      }
+      if (unitId) {
+        allQuizzesQuery = allQuizzesQuery.eq('unit_id', unitId);
+      }
+      const { data: allQuizzes } = await allQuizzesQuery;
+
+      if (allQuizzes) {
+        unanswered = allQuizzes.filter(q => !answeredQuizIds.has(q.id)).length;
+        uncorrected = allQuizzes.filter(q => !correctQuizIds.has(q.id)).length;
+      }
+    } else {
+      // If not authenticated, all quizzes are unanswered/uncorrected
+      unanswered = total || 0;
+      uncorrected = total || 0;
+    }
+
+    return c.json({
+      total: total || 0,
+      unanswered,
+      uncorrected,
+    });
+  } catch (error) {
+    console.log(`Error fetching quiz counts: ${error}`);
+    return c.json({ error: 'Failed to fetch quiz counts' }, 500);
   }
 });
 
@@ -475,6 +595,13 @@ app.get("/make-server-856c5cf0/history", async (c) => {
 });
 
 // ===== Helper Functions =====
+
+function normalizeQuiz(quiz: any) {
+  if (!quiz) return quiz;
+  const { options, ...rest } = quiz;
+  const choices = quiz.choices ?? (Array.isArray(options) ? options : undefined);
+  return choices ? { ...rest, choices } : rest;
+}
 
 async function initializeQuizzes() {
   const defaultQuizzes = [

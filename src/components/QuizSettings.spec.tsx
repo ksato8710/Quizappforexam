@@ -12,11 +12,20 @@ const { mockGetUnits } = vi.hoisted(() => ({
   }),
 }));
 
+const { mockGetQuizCounts } = vi.hoisted(() => ({
+  mockGetQuizCounts: vi.fn().mockResolvedValue({
+    total: 12,
+    unanswered: 12,
+    uncorrected: 12,
+  }),
+}));
+
 vi.mock('../utils/api-client', () => ({
   apiClient: {
     getQuizzes: vi.fn().mockResolvedValue({ quizzes: [] }),
     getStats: vi.fn(),
     getUnits: mockGetUnits,
+    getQuizCounts: mockGetQuizCounts,
   },
 }));
 

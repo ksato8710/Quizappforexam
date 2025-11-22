@@ -31,24 +31,6 @@ app.get("/make-server-856c5cf0/health", (c) => {
   return c.json({ status: "ok" });
 });
 
-// Debug endpoint to test database connectivity
-app.get("/make-server-856c5cf0/debug/test-db", async (c) => {
-  try {
-    const { data, error } = await supabase
-      .from('units')
-      .select('count')
-      .limit(1);
-
-    if (error) {
-      return c.json({ error: error.message }, 500);
-    }
-
-    return c.json({ status: "db connected", data });
-  } catch (error) {
-    return c.json({ error: String(error) }, 500);
-  }
-});
-
 // Debug endpoints removed - KV store deprecated
 
 // ===== User Authentication Endpoints =====
@@ -180,30 +162,16 @@ app.get("/make-server-856c5cf0/quizzes", async (c) => {
     const historyFilter = url.searchParams.get('historyFilter');
 
     // Build query with filters
-    // If filtering by unit name, first get the unit ID
-    let unitId: string | null = null;
-    if (unitFilter && unitFilter !== 'all') {
-      const { data: unit } = await supabase
-        .from('units')
-        .select('id')
-        .eq('name', unitFilter)
-        .single();
-
-      if (unit) {
-        unitId = unit.id;
-      }
-    }
-
     let query = supabase
       .from('quizzes')
-      .select('*, units(name)');
+      .select('*');
 
     if (subjectFilter && subjectFilter !== 'all') {
       query = query.eq('subject', subjectFilter);
     }
 
-    if (unitId) {
-      query = query.eq('unit_id', unitId);
+    if (unitFilter && unitFilter !== 'all') {
+      query = query.eq('unit', unitFilter);
     }
 
     if (difficultyParam && difficultyParam !== 'mix') {
@@ -213,19 +181,12 @@ app.get("/make-server-856c5cf0/quizzes", async (c) => {
       }
     }
 
-    const { data: rawQuizzes, error } = await query.order('order', { ascending: true });
+    const { data: quizzes, error } = await query.order('order', { ascending: true });
 
     if (error) {
       console.log(`Error fetching quizzes: ${error}`);
       return c.json({ error: 'Failed to fetch quizzes' }, 500);
     }
-
-    // Transform the response to flatten unit name
-    const quizzes = (rawQuizzes || []).map((q: any) => ({
-      ...q,
-      unit: q.units?.name || null,
-      units: undefined,
-    }));
 
     // If no quizzes exist, initialize with default data
     if (!quizzes || quizzes.length === 0) {
@@ -236,7 +197,7 @@ app.get("/make-server-856c5cf0/quizzes", async (c) => {
         .from('quizzes')
         .select('*')
         .order('order', { ascending: true });
-      return c.json({ quizzes: newQuizzes || [] });
+      return c.json({ quizzes: (newQuizzes || []).map(normalizeQuiz) });
     }
 
     let filteredQuizzes = quizzes;
@@ -287,7 +248,8 @@ app.get("/make-server-856c5cf0/quizzes", async (c) => {
     }
 
     console.log(`Returning ${filteredQuizzes.length} quizzes`);
-    return c.json({ quizzes: filteredQuizzes });
+    const normalizedQuizzes = filteredQuizzes.map(normalizeQuiz);
+    return c.json({ quizzes: normalizedQuizzes });
   } catch (error) {
     console.log(`Error fetching quizzes: ${error}`);
     return c.json({ error: 'Failed to fetch quizzes' }, 500);
@@ -299,21 +261,6 @@ app.post("/make-server-856c5cf0/quizzes", async (c) => {
   try {
     const quiz = await c.req.json();
 
-    // Resolve unit_id if unit name is provided
-    let unitId = quiz.unitId;
-    if (!unitId && quiz.unit) {
-      const { data: unit } = await supabase
-        .from('units')
-        .select('id')
-        .eq('name', quiz.unit)
-        .eq('subject', quiz.subject)
-        .single();
-
-      if (unit) {
-        unitId = unit.id;
-      }
-    }
-
     // Write to RDB
     const { data, error } = await supabase.from("quizzes").insert({
       question: quiz.question,
@@ -323,7 +270,7 @@ app.post("/make-server-856c5cf0/quizzes", async (c) => {
       options: quiz.choices ? quiz.choices : null,
       difficulty: quiz.difficulty,
       subject: quiz.subject,
-      unit_id: unitId,
+      unit: quiz.unit,
       category_id: quiz.categoryId,
       order: quiz.order,
     }).select().single();
@@ -377,11 +324,16 @@ app.get("/make-server-856c5cf0/units", async (c) => {
     const url = new URL(c.req.url);
     const subjectFilter = url.searchParams.get('subject');
 
-    // Use PostgreSQL function for optimal performance
-    // This does DISTINCT at the database level, returning minimal data
-    const { data: units, error } = await supabase.rpc('get_units_with_quizzes', {
-      subject_filter: subjectFilter && subjectFilter !== 'all' ? subjectFilter : null,
-    });
+    let query = supabase
+      .from('units')
+      .select('id, subject, name')
+      .order('name', { ascending: true });
+
+    if (subjectFilter && subjectFilter !== 'all') {
+      query = query.eq('subject', subjectFilter);
+    }
+
+    const { data: units, error } = await query;
 
     if (error) {
       console.log(`Error fetching units: ${error}`);
@@ -421,6 +373,7 @@ app.get("/make-server-856c5cf0/quiz-counts", async (c) => {
         .from('units')
         .select('id')
         .eq('name', unit)
+        .eq('subject', subject)
         .single();
       unitId = unitData?.id || null;
     }
@@ -624,7 +577,6 @@ app.get("/make-server-856c5cf0/history", async (c) => {
 
     // Transform to match expected format
     const history = (answers || []).map(a => ({
-      id: a.id,
       userId: user.id,
       quizId: a.quizzes?.id,
       userAnswer: a.user_answer,
@@ -642,43 +594,14 @@ app.get("/make-server-856c5cf0/history", async (c) => {
   }
 });
 
-// Delete an answer from history
-app.delete("/make-server-856c5cf0/history/:id", async (c) => {
-  try {
-    const accessToken = c.req.header('Authorization')?.split(' ')[1];
-    console.log('Delete request - token exists:', !!accessToken);
-
-    const { data: { user }, error: authError } = await supabase.auth.getUser(accessToken);
-
-    if (!user || authError) {
-      console.log('Delete auth error:', authError);
-      return c.json({ error: 'Unauthorized' }, 401);
-    }
-
-    const answerId = c.req.param('id');
-    console.log('Deleting answer:', answerId, 'for user:', user.id);
-
-    // Delete the answer (RLS policy ensures user can only delete their own answers)
-    const { error } = await supabase
-      .from('user_answers')
-      .delete()
-      .eq('id', answerId)
-      .eq('user_id', user.id);
-
-    if (error) {
-      console.log(`Error deleting answer: ${error}`);
-      return c.json({ error: 'Failed to delete answer' }, 500);
-    }
-
-    console.log('Answer deleted successfully');
-    return c.json({ success: true });
-  } catch (error) {
-    console.log(`Error deleting answer: ${error}`);
-    return c.json({ error: 'Failed to delete answer' }, 500);
-  }
-});
-
 // ===== Helper Functions =====
+
+function normalizeQuiz(quiz: any) {
+  if (!quiz) return quiz;
+  const { options, ...rest } = quiz;
+  const choices = quiz.choices ?? (Array.isArray(options) ? options : undefined);
+  return choices ? { ...rest, choices } : rest;
+}
 
 async function initializeQuizzes() {
   const defaultQuizzes = [
@@ -691,7 +614,7 @@ async function initializeQuizzes() {
       choices: ['1.5Vのまま', '3.0Vになる', '0.75Vになる'],
       difficulty: 2,
       subject: '理科',
-      unit: '電流と回路',
+      unit: '電流・電圧と電気抵抗',
       categoryId: 'category:7',
       order: 1,
     },
@@ -703,7 +626,7 @@ async function initializeQuizzes() {
       type: 'text',
       difficulty: 2,
       subject: '理科',
-      unit: '電流と回路',
+      unit: '電流・電圧と電気抵抗',
       categoryId: 'category:7',
       order: 2,
     },
@@ -716,7 +639,7 @@ async function initializeQuizzes() {
       choices: ['正比例の関係がある', '反比例の関係がある', '関係はない'],
       difficulty: 2,
       subject: '理科',
-      unit: '電流と回路',
+      unit: '電流・電圧と電気抵抗',
       categoryId: 'category:7',
       order: 3,
     },
@@ -728,7 +651,7 @@ async function initializeQuizzes() {
       type: 'text',
       difficulty: 2,
       subject: '理科',
-      unit: '電流と回路',
+      unit: '電流・電圧と電気抵抗',
       categoryId: 'category:7',
       order: 4,
     },
@@ -741,7 +664,7 @@ async function initializeQuizzes() {
       choices: ['どちらも同じ明るさ', '3.0Vのほうがだいたい2倍くらい明るい', '3.0Vのほうがだいたい半分の明るさ'],
       difficulty: 2,
       subject: '理科',
-      unit: '電流と回路',
+      unit: '電流・電圧と電気抵抗',
       categoryId: 'category:7',
       order: 5,
     },
@@ -754,7 +677,7 @@ async function initializeQuizzes() {
       choices: ['正しい', '間違っている'],
       difficulty: 2,
       subject: '理科',
-      unit: '電流と回路',
+      unit: '電流・電圧と電気抵抗',
       categoryId: 'category:7',
       order: 6,
     },
@@ -767,7 +690,7 @@ async function initializeQuizzes() {
       choices: ['豆電球の数に比例して大きくなる', '豆電球の数に比例して小さくなる', '変わらない'],
       difficulty: 2,
       subject: '理科',
-      unit: '電流と回路',
+      unit: '電流・電圧と電気抵抗',
       categoryId: 'category:7',
       order: 7,
     },
@@ -779,7 +702,7 @@ async function initializeQuizzes() {
       type: 'text',
       difficulty: 2,
       subject: '理科',
-      unit: '電流と回路',
+      unit: '電流・電圧と電気抵抗',
       categoryId: 'category:7',
       order: 8,
     },
@@ -791,7 +714,7 @@ async function initializeQuizzes() {
       type: 'text',
       difficulty: 3,
       subject: '理科',
-      unit: '電流と回路',
+      unit: '電流・電圧と電気抵抗',
       categoryId: 'category:7',
       order: 9,
     },
@@ -803,7 +726,7 @@ async function initializeQuizzes() {
       type: 'text',
       difficulty: 3,
       subject: '理科',
-      unit: '電流と回路',
+      unit: '電流・電圧と電気抵抗',
       categoryId: 'category:7',
       order: 10,
     },
@@ -816,7 +739,7 @@ async function initializeQuizzes() {
       choices: ['正比例の関係がある', '反比例の関係がある', '関係はない'],
       difficulty: 2,
       subject: '理科',
-      unit: '電流と回路',
+      unit: '電流・電圧と電気抵抗',
       categoryId: 'category:7',
       order: 11,
     },
@@ -829,7 +752,7 @@ async function initializeQuizzes() {
       choices: ['回路A', '回路B', 'どちらも同じ明るさ'],
       difficulty: 3,
       subject: '理科',
-      unit: '電流と回路',
+      unit: '電流・電圧と電気抵抗',
       categoryId: 'category:7',
       order: 12,
     },
@@ -842,7 +765,7 @@ async function initializeQuizzes() {
       choices: ['3.0Vになる', '1.5Vのまま変わらない', '0.75Vになる'],
       difficulty: 2,
       subject: '理科',
-      unit: '電流と回路',
+      unit: '電流・電圧と電気抵抗',
       categoryId: 'category:7',
       order: 13,
     },
@@ -854,7 +777,7 @@ async function initializeQuizzes() {
       type: 'text',
       difficulty: 3,
       subject: '理科',
-      unit: '電流と回路',
+      unit: '電流・電圧と電気抵抗',
       categoryId: 'category:7',
       order: 14,
     },
@@ -867,7 +790,7 @@ async function initializeQuizzes() {
       choices: ['豆電球の数が増えるほど1個あたりの電流も増える', 'どのときも1個あたり0.6Aで同じ', '豆電球の数が増えるほど1個あたりの電流は減る'],
       difficulty: 2,
       subject: '理科',
-      unit: '電流と回路',
+      unit: '電流・電圧と電気抵抗',
       categoryId: 'category:7',
       order: 15,
     },
@@ -880,7 +803,7 @@ async function initializeQuizzes() {
       choices: ['数が増えるほど電気抵抗は大きくなる', '数が増えるほど電気抵抗は小さくなる', '電気抵抗は変わらない'],
       difficulty: 3,
       subject: '理科',
-      unit: '電流と回路',
+      unit: '電流・電圧と電気抵抗',
       categoryId: 'category:7',
       order: 16,
     },
@@ -893,7 +816,7 @@ async function initializeQuizzes() {
       choices: ['A: 電池を直列につなぐ', 'B: 電池を並列につなぐ'],
       difficulty: 3,
       subject: '理科',
-      unit: '電流と回路',
+      unit: '電流・電圧と電気抵抗',
       categoryId: 'category:7',
       order: 17,
     },
@@ -905,7 +828,7 @@ async function initializeQuizzes() {
       type: 'text',
       difficulty: 4,
       subject: '理科',
-      unit: '電流と回路',
+      unit: '電流・電圧と電気抵抗',
       categoryId: 'category:7',
       order: 18,
     },
@@ -917,7 +840,7 @@ async function initializeQuizzes() {
       type: 'text',
       difficulty: 3,
       subject: '理科',
-      unit: '電流と回路',
+      unit: '電流・電圧と電気抵抗',
       categoryId: 'category:7',
       order: 19,
     },
@@ -930,7 +853,7 @@ async function initializeQuizzes() {
       choices: ['正比例の関係がある', '反比例の関係がある', '関係はない'],
       difficulty: 3,
       subject: '理科',
-      unit: '電流と回路',
+      unit: '電流・電圧と電気抵抗',
       categoryId: 'category:7',
       order: 20,
     },
@@ -943,7 +866,7 @@ async function initializeQuizzes() {
       choices: ['長さが長いほど電気抵抗は小さくなる', '長さが長いほど電気抵抗は大きくなる', '長さと電気抵抗に関係はない'],
       difficulty: 2,
       subject: '理科',
-      unit: '電流と回路',
+      unit: '電流・電圧と電気抵抗',
       categoryId: 'category:7',
       order: 21,
     },
@@ -955,7 +878,7 @@ async function initializeQuizzes() {
       type: 'text',
       difficulty: 3,
       subject: '理科',
-      unit: '電流と回路',
+      unit: '電流・電圧と電気抵抗',
       categoryId: 'category:7',
       order: 22,
     },
@@ -968,7 +891,7 @@ async function initializeQuizzes() {
       choices: ['正比例の関係がある', '反比例の関係がある', '関係はない'],
       difficulty: 3,
       subject: '理科',
-      unit: '電流と回路',
+      unit: '電流・電圧と電気抵抗',
       categoryId: 'category:7',
       order: 23,
     },
@@ -981,7 +904,7 @@ async function initializeQuizzes() {
       choices: ['断面積が大きいほど電気抵抗は大きくなる', '断面積が大きいほど電気抵抗は小さくなる', '断面積と電気抵抗に関係はない'],
       difficulty: 3,
       subject: '理科',
-      unit: '電流と回路',
+      unit: '電流・電圧と電気抵抗',
       categoryId: 'category:7',
       order: 24,
     },
@@ -994,7 +917,7 @@ async function initializeQuizzes() {
       choices: ['2倍になる', '1/2になる', '変わらない'],
       difficulty: 4,
       subject: '理科',
-      unit: '電流と回路',
+      unit: '電流・電圧と電気抵抗',
       categoryId: 'category:7',
       order: 25,
     },
@@ -1007,7 +930,7 @@ async function initializeQuizzes() {
       choices: ['長さを足した1本の長いニクロム線', '断面積を足した1本の太いニクロム線', 'どちらでもない'],
       difficulty: 3,
       subject: '理科',
-      unit: '電流と回路',
+      unit: '電流・電圧と電気抵抗',
       categoryId: 'category:7',
       order: 26,
     },
@@ -1020,7 +943,7 @@ async function initializeQuizzes() {
       choices: ['長さが2倍のニクロム線', '断面積が2倍のニクロム線', '長さも断面積も2倍のニクロム線'],
       difficulty: 3,
       subject: '理科',
-      unit: '電流と回路',
+      unit: '電流・電圧と電気抵抗',
       categoryId: 'category:7',
       order: 27,
     },
@@ -1033,7 +956,7 @@ async function initializeQuizzes() {
       choices: ['長さ', '断面積', '電圧'],
       difficulty: 3,
       subject: '理科',
-      unit: '電流と回路',
+      unit: '電流・電圧と電気抵抗',
       categoryId: 'category:7',
       order: 28,
     },
@@ -1046,7 +969,7 @@ async function initializeQuizzes() {
       choices: ['長さ', '断面積', '電圧'],
       difficulty: 3,
       subject: '理科',
-      unit: '電流と回路',
+      unit: '電流・電圧と電気抵抗',
       categoryId: 'category:7',
       order: 29,
     },
@@ -1059,7 +982,7 @@ async function initializeQuizzes() {
       choices: ['電圧の大きさをはかる道具', '電流の大きさをはかる道具', '電気抵抗の大きさをはかる道具'],
       difficulty: 2,
       subject: '理科',
-      unit: '電流と回路',
+      unit: '電流・電圧と電気抵抗',
       categoryId: 'category:7',
       order: 30,
     },
@@ -1072,7 +995,7 @@ async function initializeQuizzes() {
       choices: ['調べたい部分に直列につなぐ', '調べたい部分に並列につなぐ', 'どこにつないでもよい'],
       difficulty: 2,
       subject: '理科',
-      unit: '電流と回路',
+      unit: '電流・電圧と電気抵抗',
       categoryId: 'category:7',
       order: 31,
     },
@@ -1085,7 +1008,7 @@ async function initializeQuizzes() {
       choices: ['5Aのレンジ', '500mAのレンジ', '50mAのレンジ'],
       difficulty: 2,
       subject: '理科',
-      unit: '電流と回路',
+      unit: '電流・電圧と電気抵抗',
       categoryId: 'category:7',
       order: 32,
     },
@@ -1489,19 +1412,6 @@ async function initializeQuizzes() {
   );
 
   for (const quiz of defaultQuizzes) {
-    // Look up unit_id from unit name
-    const { data: unit } = await supabase
-      .from('units')
-      .select('id')
-      .eq('name', quiz.unit)
-      .eq('subject', quiz.subject)
-      .single();
-
-    if (!unit) {
-      console.log(`Warning: Unit not found for quiz: ${quiz.question} (unit: ${quiz.unit})`);
-      continue;
-    }
-
     await supabase.from("quizzes").insert({
       question: quiz.question,
       answer: quiz.answer,
@@ -1510,7 +1420,7 @@ async function initializeQuizzes() {
       options: quiz.choices ? quiz.choices : null,
       difficulty: quiz.difficulty,
       subject: quiz.subject,
-      unit_id: unit.id,
+      unit: quiz.unit,
       category_id: quiz.categoryId,
       order: quiz.order,
     });

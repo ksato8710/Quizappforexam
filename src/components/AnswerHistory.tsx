@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { apiClient } from '@/utils/api-client'
+import { FeedbackWidget } from '@/components/FeedbackWidget'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
@@ -146,7 +147,7 @@ export function AnswerHistory({ onBack }: AnswerHistoryProps) {
               </TableHeader>
               <TableBody>
                 {filtered.length === 0 ? (
-                  <TableRow>
+                  <TableRow key="empty-row">
                     <TableCell colSpan={6} className="text-center text-gray-500 py-8">
                       {filterCorrect === 'all' ? '回答履歴がありません' : '該当する回答が見つかりませんでした'}
                     </TableCell>
@@ -217,6 +218,7 @@ export function AnswerHistory({ onBack }: AnswerHistoryProps) {
           </div>
         </Card>
       </div>
+      <FeedbackWidget pageContext="回答履歴画面" />
     </div>
   )
 }

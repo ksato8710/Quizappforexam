@@ -4,6 +4,7 @@ import { QuizSettings, QuizConfig } from './components/QuizSettings';
 import { Auth } from './components/Auth';
 import { QuizList } from './components/QuizList';
 import { AnswerHistory } from './components/AnswerHistory';
+import { FeedbackWidget } from './components/FeedbackWidget';
 import { Button } from './components/ui/button';
 import { Card } from './components/ui/card';
 import { BookOpen, RotateCcw, LogOut, BarChart3, Settings } from 'lucide-react';
@@ -307,7 +308,7 @@ export default function App() {
             <p className="text-gray-700 mb-2">正答率</p>
             <div className="flex items-baseline gap-2">
               <span className="text-indigo-600">
-                {stats.totalAnswers > 0 
+                {stats.totalAnswers > 0
                   ? Math.round((stats.totalCorrect / stats.totalAnswers) * 100)
                   : 0}%
               </span>
@@ -321,6 +322,7 @@ export default function App() {
             <QuizList layout="embedded" />
           </div>
         </div>
+        <FeedbackWidget pageContext="統計画面" />
       </div>
     );
   }
@@ -335,7 +337,7 @@ export default function App() {
             </div>
             <h2 className="text-indigo-900 mb-2">お疲れさまでした！</h2>
             <p className="text-gray-600 mb-6">全{quizzes.length}問のクイズが完了しました。</p>
-            
+
             <div className="bg-gradient-to-br from-blue-50 to-indigo-50 border-2 border-indigo-200 rounded-xl p-6 mb-6">
               <p className="text-gray-700 mb-2">あなたの結果</p>
               <div className="flex items-center justify-center gap-2">
@@ -351,9 +353,9 @@ export default function App() {
               </div>
             </div>
           </div>
-          
+
           <div className="flex gap-3 justify-center">
-            <Button 
+            <Button
               onClick={handleRestart}
               className="bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700"
               size="lg"
@@ -371,6 +373,7 @@ export default function App() {
             </Button>
           </div>
         </div>
+        <FeedbackWidget pageContext="クイズ完了画面" />
       </div>
     );
   }
@@ -448,7 +451,7 @@ export default function App() {
             <span className="text-indigo-600">{currentQuizIndex + 1} / {quizzes.length}</span>
           </div>
           <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
-            <div 
+            <div
               className="h-full bg-gradient-to-r from-blue-500 to-indigo-600 transition-all duration-300"
               style={{ width: `${progress}%` }}
             />
@@ -469,6 +472,7 @@ export default function App() {
           questionNumber={currentQuizIndex + 1}
         />
       </div>
+      <FeedbackWidget pageContext="クイズ画面" quizId={currentQuiz?.id} />
     </div>
   );
 }

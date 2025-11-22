@@ -174,4 +174,22 @@ export const apiClient = {
   deleteAnswer: async (answerId: string): Promise<{ success: boolean }> => {
     return fetchAPI(`/history/${answerId}`, { method: 'DELETE' }, true);
   },
+
+  // Feedback
+  submitFeedback: async (params: {
+    type: 'bug' | 'feature' | 'improvement' | 'other';
+    subject?: string;
+    message: string;
+    pageContext?: string;
+    quizId?: string;
+  }): Promise<{ success: boolean; message: string }> => {
+    return fetchAPI('/feedback', {
+      method: 'POST',
+      body: JSON.stringify(params),
+    }, true);
+  },
+
+  getFeedback: async (): Promise<{ feedback: any[] }> => {
+    return fetchAPI('/feedback', {}, true);
+  },
 };
