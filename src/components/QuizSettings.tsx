@@ -284,19 +284,7 @@ export function QuizSettings({ onStart, onShowStats, onShowQuizCreation, onLogou
             <p className="text-gray-600">学習したい内容を選択してください</p>
           </div>
 
-          {onShowQuizCreation && (
-            <div className="mb-6 flex justify-center">
-              <Button
-                onClick={onShowQuizCreation}
-                variant="outline"
-                className="border-indigo-300 text-indigo-700 hover:bg-indigo-50 hover:border-indigo-500"
-              >
-                ➕ クイズを追加
-              </Button>
-            </div>
-          )}
-
-          <div className="space-y-6">
+        <div className="space-y-6">
           {/* ステップ1: 教科選択 */}
           <Card className="bg-white shadow-xl rounded-2xl p-6">
             <div className="flex items-center gap-2 mb-4">
@@ -550,6 +538,17 @@ export function QuizSettings({ onStart, onShowStats, onShowQuizCreation, onLogou
               <Button onClick={onShowStats} variant="outline" className="flex-1 py-6" size="lg">
                 <BarChart3 className="w-5 h-5 mr-2" />
                 統計情報を見る
+              </Button>
+            )}
+
+            {onShowQuizCreation && (
+              <Button
+                onClick={onShowQuizCreation}
+                variant="outline"
+                className="flex-1 py-6 border-indigo-300 text-indigo-700 hover:bg-indigo-50 hover:border-indigo-500"
+                size="lg"
+              >
+                ➕ クイズを追加
               </Button>
             )}
 

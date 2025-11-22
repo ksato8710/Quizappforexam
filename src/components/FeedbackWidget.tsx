@@ -37,18 +37,18 @@ export function FeedbackWidget({ pageContext, quizId }: FeedbackWidgetProps) {
 
   return (
     <div className="mt-8 max-w-3xl mx-auto">
-      <Card className="bg-white shadow-xl rounded-2xl p-6">
-        <div className="flex items-center gap-2 mb-2">
-          <div className="w-8 h-8 shrink-0 rounded-full border-2 border-indigo-600 text-indigo-600 flex items-center justify-center font-bold text-xl">
+      <Card className="bg-gray-100 border border-gray-300 shadow-md rounded-2xl p-6">
+        <div className="flex items-center gap-2 mb-3">
+          <div className="w-8 h-8 shrink-0 rounded-full border-2 border-gray-500 text-gray-700 bg-white flex items-center justify-center font-bold text-xl">
             💬
           </div>
-          <h3 className="text-indigo-900 text-lg font-semibold">
+          <h3 className="text-gray-900 text-lg font-semibold">
             気付いたことがあればコメントください
           </h3>
         </div>
 
-        <p className="text-sm text-gray-600 mb-1">
-          気づいたこと、変えたいこと、知りたいことなどがあれば、ぜひ教えてください。
+        <p className="text-sm text-gray-700 mb-3">
+          気づいたこと、知りたいこと、「もっとこうしたい」、などがあれば、ぜひ教えてください。
         </p>
 
         <div className="space-y-3">
@@ -56,8 +56,6 @@ export function FeedbackWidget({ pageContext, quizId }: FeedbackWidgetProps) {
             <label htmlFor="feedback-message" className="block text-sm font-medium text-gray-700 mb-2">
               メッセージ <span className="text-red-500">*</span>
             </label>
-            <p className="text-xs text-gray-500 mb-2">
-            </p>
             <Textarea
               id="feedback-message"
               placeholder="○○をもっと△△にしてほしい"
@@ -65,7 +63,7 @@ export function FeedbackWidget({ pageContext, quizId }: FeedbackWidgetProps) {
               onChange={(e) => setMessage(e.target.value.slice(0, 256))}
               maxLength={256}
               rows={4}
-              className="resize-none border-2 border-gray-200 rounded-lg focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200"
+              className="resize-none border-2 border-gray-400 bg-gray-200 rounded-lg focus:border-gray-600 focus:ring-2 focus:ring-gray-300"
               disabled={submitting}
             />
             <p className="text-xs text-gray-500 text-right mt-1">
@@ -76,7 +74,8 @@ export function FeedbackWidget({ pageContext, quizId }: FeedbackWidgetProps) {
           <Button
             onClick={handleSubmit}
             disabled={submitting || !message.trim()}
-            className="w-full bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white"
+            variant="ghost"
+            className="w-full justify-center text-gray-800 hover:text-gray-900 underline underline-offset-2 decoration-2"
             size="lg"
           >
             {submitting ? '送信中...' : '送信'}
